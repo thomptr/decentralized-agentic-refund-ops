@@ -64,23 +64,30 @@ class IdempotencyTracker:
     async def _rebuild_from_topic(self, topic: str) -> None:
         from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped]
 
+        # NOTE: aiokafka's `consumer_timeout_ms` only bounds background fetch
+        # waits — it does NOT stop the async iterator the way kafka-python does.
+        # `async for msg in consumer` blocks forever once the topic is drained,
+        # so we poll with `getmany` and stop on the first empty poll instead.
         consumer = AIOKafkaConsumer(
             topic,
             bootstrap_servers=self._bootstrap_servers,
             group_id=None,  # independent consumer
             auto_offset_reset="earliest",
             enable_auto_commit=False,
-            consumer_timeout_ms=2000,
         )
         await consumer.start()
         try:
-            async for msg in consumer:
-                try:
-                    data = json.loads(msg.value)
-                    event_id = UUID(data["event_id"])
-                    self._lru.add(event_id)
-                except Exception:
-                    pass
+            while True:
+                batches = await consumer.getmany(timeout_ms=1000)
+                if not batches:
+                    break
+                for records in batches.values():
+                    for msg in records:
+                        try:
+                            data = json.loads(msg.value)
+                            self._lru.add(UUID(data["event_id"]))
+                        except Exception:
+                            pass
         except Exception:
             pass
         finally:

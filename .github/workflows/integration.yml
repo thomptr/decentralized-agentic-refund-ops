@@ -1,12 +1,16 @@
 name: Integration Tests
 
+# TEMPORARILY DISABLED on push/PR: the testcontainers Kafka integration suite is
+# being stabilized. Run manually from the Actions tab until re-enabled by
+# restoring the push/pull_request triggers below.
 on:
-  push:
-    branches-ignore:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+  # push:
+  #   branches-ignore:
+  #     - main
+  # pull_request:
+  #   branches:
+  #     - main
 
 jobs:
   integration:

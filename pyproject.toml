@@ -17,6 +17,7 @@ dependencies = [
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
+    "pytest-timeout>=2.3",
     "testcontainers[kafka]>=4",
     "ruff>=0.4",
     "mypy>=1.10",
@@ -34,6 +35,10 @@ packages = ["src/agent_foundation", "packages"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = ["integration: mark test as requiring a live Kafka broker (via testcontainers)"]
+# Safety net: no single test (including testcontainers startup + async work) may
+# hang the suite. The signal method interrupts blocked asyncio calls on Linux/CI.
+timeout = 180
+timeout_method = "signal"
 
 [tool.ruff]
 line-length = 100
