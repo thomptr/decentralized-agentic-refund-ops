@@ -74,17 +74,24 @@ def test_no_router_defined_in_agent_files() -> None:
 
 
 def test_customer_resolution_delegates_directly_to_billing() -> None:
-    """customer_resolution/main.py submits to billing-entitlement-agent endpoint directly."""
-    cr_main = AGENTS_DIR / "customer_resolution" / "main.py"
-    if not cr_main.exists():
-        pytest.skip("customer_resolution/main.py not found")
+    """customer_resolution delegates to the billing-entitlement-agent endpoint directly.
 
-    source = _load_source(cr_main)
-    assert "billing-entitlement-agent" in source, (
-        "customer_resolution/main.py must address billing-entitlement-agent directly"
+    Delegation lives in the agent package (a2a_handlers.py), not the thin main.py
+    entrypoint, and uses the async Publisher.publish() model rather than a blocking
+    A2AClient.submit(). This test scans the whole package for direct endpoint addressing.
+    """
+    cr_pkg = AGENTS_DIR / "customer_resolution"
+    if not cr_pkg.exists():
+        pytest.skip("customer_resolution package not found")
+
+    source = "\n".join(
+        _load_source(path) for path in cr_pkg.glob("*.py") if path.name != "__init__.py"
     )
-    assert "A2AClient" in source or "submit" in source, (
-        "customer_resolution/main.py must use A2AClient.submit for delegation"
+    assert "billing-entitlement-agent" in source, (
+        "customer_resolution must address billing-entitlement-agent directly"
+    )
+    assert "endpoint_topic" in source or "A2AClient" in source or "submit" in source, (
+        "customer_resolution must delegate via endpoint_topic()/A2AClient, not a router"
     )
 
 
