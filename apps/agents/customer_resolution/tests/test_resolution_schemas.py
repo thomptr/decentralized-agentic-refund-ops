@@ -28,6 +28,7 @@ from src.agent_foundation.transport.topics import TOPIC_NAMES
 
 # --- CustomerResponseDecisionPayload ---
 
+
 def test_decision_payload_round_trip():
     p = CustomerResponseDecisionPayload(
         case_id=uuid.uuid4(),
@@ -76,6 +77,7 @@ def test_topic_resolution_decided_in_topic_names():
 
 # --- CustomerIssueClassifiedPayload ---
 
+
 def test_classified_payload_round_trip():
     p = CustomerIssueClassifiedPayload(
         case_id=uuid.uuid4(),
@@ -117,6 +119,7 @@ def test_topic_issue_classified_in_topic_names():
 
 
 # --- RefundReviewRequestedPayload ---
+
 
 def test_refund_review_requested_round_trip():
     p = RefundReviewRequestedPayload(
@@ -168,6 +171,7 @@ def test_topic_refund_review_in_topic_names():
 
 
 # --- CustomerResponseDraftedPayload ---
+
 
 def test_response_drafted_round_trip():
     p = CustomerResponseDraftedPayload(
@@ -223,13 +227,16 @@ def test_topic_response_drafted_in_topic_names():
 
 # --- Topic registration completeness ---
 
+
 def test_billing_result_registered():
     from packages.contracts.events.payloads import BillingRefundAnalysisCompletedPayload
+
     assert lookup(TOPIC_BILLING_RESULT) is BillingRefundAnalysisCompletedPayload
     assert TOPIC_BILLING_RESULT in TOPIC_NAMES
 
 
 def test_risk_result_registered():
     from packages.contracts.events.payloads import RiskReviewCompletedPayload
+
     assert lookup(TOPIC_RISK_RESULT) is RiskReviewCompletedPayload
     assert TOPIC_RISK_RESULT in TOPIC_NAMES

@@ -86,9 +86,7 @@ def can_transition(from_status: CaseStatus, to_status: CaseStatus) -> bool:
 
 def assert_transition(from_status: CaseStatus, to_status: CaseStatus) -> None:
     if not can_transition(from_status, to_status):
-        raise ValueError(
-            f"Illegal case transition: {from_status.value} → {to_status.value}"
-        )
+        raise ValueError(f"Illegal case transition: {from_status.value} → {to_status.value}")
 
 
 def is_terminal(status: CaseStatus) -> bool:
@@ -350,10 +348,7 @@ def build_timeout_status(case: ResolutionCase, *, now: datetime) -> TimeoutStatu
         missing.append("billing")
     if case.risk_task_id and case.risk_task_id in case.pending_tasks:
         missing.append("risk")
-    exceeded = (
-        case.deadline_at is not None
-        and now > case.deadline_at
-    )
+    exceeded = case.deadline_at is not None and now > case.deadline_at
     return TimeoutStatus(
         any_missing=len(missing) > 0,
         missing_reviews=missing,

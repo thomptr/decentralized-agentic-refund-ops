@@ -123,9 +123,7 @@ async def test_case_ready_for_decision_when_both_results():
     case = await store.get(case.case_id)
     assert case.status != CaseStatus.READY_FOR_DECISION
 
-    await store.apply_result(
-        case.case_id, risk_tid, RiskFinding(level="low", task_id=risk_tid)
-    )
+    await store.apply_result(case.case_id, risk_tid, RiskFinding(level="low", task_id=risk_tid))
     case = await store.get(case.case_id)
     assert case.status == CaseStatus.READY_FOR_DECISION
 

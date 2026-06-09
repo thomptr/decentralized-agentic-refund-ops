@@ -61,15 +61,13 @@ def test_no_forbidden_imports():
                         module = alias.name
                         for forbidden in _FORBIDDEN_IMPORTS:
                             assert forbidden not in module, (
-                                f"{filepath}: forbidden import '{module}' "
-                                f"(contains '{forbidden}')"
+                                f"{filepath}: forbidden import '{module}' (contains '{forbidden}')"
                             )
                 elif isinstance(node, ast.ImportFrom) and node.module:
                     module = node.module
                     for forbidden in _FORBIDDEN_IMPORTS:
                         assert forbidden not in module, (
-                            f"{filepath}: forbidden from-import '{module}' "
-                            f"(contains '{forbidden}')"
+                            f"{filepath}: forbidden from-import '{module}' (contains '{forbidden}')"
                         )
 
 
@@ -96,6 +94,4 @@ def test_no_forbidden_names_in_agent_source():
     for filepath in _python_files():
         source = filepath.read_text()
         for name in _FORBIDDEN_NAMES:
-            assert name not in source, (
-                f"{filepath}: forbidden name '{name}' found in agent source"
-            )
+            assert name not in source, f"{filepath}: forbidden name '{name}' found in agent source"

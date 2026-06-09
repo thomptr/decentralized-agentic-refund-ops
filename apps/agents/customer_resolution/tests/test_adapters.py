@@ -15,9 +15,15 @@ _PERFORMER = "billing-entitlement-agent"
 
 # --- Billing normalization ---
 
+
 def test_billing_canonical_approve():
-    data = {"recommendation": "approve", "confidence": 0.9, "requires_human_review": False,
-            "evidence": [], "reasoning_summary": "ok"}
+    data = {
+        "recommendation": "approve",
+        "confidence": 0.9,
+        "requires_human_review": False,
+        "evidence": [],
+        "reasoning_summary": "ok",
+    }
     finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
     assert finding is not None
     assert finding.eligibility == "eligible"
@@ -25,8 +31,13 @@ def test_billing_canonical_approve():
 
 
 def test_billing_canonical_deny():
-    data = {"recommendation": "deny", "confidence": 0.8, "requires_human_review": False,
-            "evidence": [], "reasoning_summary": "denied"}
+    data = {
+        "recommendation": "deny",
+        "confidence": 0.8,
+        "requires_human_review": False,
+        "evidence": [],
+        "reasoning_summary": "denied",
+    }
     finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
     assert finding is not None
     assert finding.eligibility == "ineligible"
@@ -47,8 +58,13 @@ def test_billing_stub_eligible_false():
 
 
 def test_billing_partial_refund():
-    data = {"recommendation": "partial_refund", "confidence": 0.7, "requires_human_review": False,
-            "evidence": [], "reasoning_summary": "partial"}
+    data = {
+        "recommendation": "partial_refund",
+        "confidence": 0.7,
+        "requires_human_review": False,
+        "evidence": [],
+        "reasoning_summary": "partial",
+    }
     finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
     assert finding is not None
     assert finding.eligibility == "partial"
@@ -65,16 +81,26 @@ _RISK_PERFORMER = "risk-fraud-agent"
 
 
 def test_risk_canonical_low():
-    data = {"recommendation": "low", "confidence": 0.1, "requires_human_review": False,
-            "evidence": [], "reasoning_summary": "low risk"}
+    data = {
+        "recommendation": "low",
+        "confidence": 0.1,
+        "requires_human_review": False,
+        "evidence": [],
+        "reasoning_summary": "low risk",
+    }
     finding = normalize_risk_result(_TASK_ID, _RISK_PERFORMER, data)
     assert finding is not None
     assert finding.level == "low"
 
 
 def test_risk_canonical_high():
-    data = {"recommendation": "high", "confidence": 0.95, "requires_human_review": False,
-            "evidence": [], "reasoning_summary": "high risk"}
+    data = {
+        "recommendation": "high",
+        "confidence": 0.95,
+        "requires_human_review": False,
+        "evidence": [],
+        "reasoning_summary": "high risk",
+    }
     finding = normalize_risk_result(_TASK_ID, _RISK_PERFORMER, data)
     assert finding is not None
     assert finding.level == "high"

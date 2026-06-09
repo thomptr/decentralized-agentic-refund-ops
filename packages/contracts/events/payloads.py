@@ -142,9 +142,7 @@ class CustomerResponseDraftedPayload(BaseModel):
         if not self.draft_response.strip():
             raise ValueError("draft_response must be non-empty")
         if self.outcome == ResolutionOutcome.ESCALATE_HUMAN and not self.requires_human_approval:
-            raise ValueError(
-                "requires_human_approval must be True when outcome is escalate_human"
-            )
+            raise ValueError("requires_human_approval must be True when outcome is escalate_human")
         return self
 
 

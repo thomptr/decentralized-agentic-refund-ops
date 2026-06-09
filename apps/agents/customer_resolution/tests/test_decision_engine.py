@@ -57,12 +57,14 @@ def _risk(
 
 # --- Row 0: direct_response ---
 
+
 def test_direct_response_non_refund_ticket():
     result = decide(_triage(needs_refund=False), None, None)
     assert result.outcome == ResolutionOutcome.DIRECT_RESPONSE
 
 
 # --- Row 1: missing analysis ---
+
 
 def test_missing_billing_escalates():
     ts = TimeoutStatus(any_missing=True, missing_reviews=["billing"])
@@ -92,6 +94,7 @@ def test_timeout_escalates_with_analysis_timeout_reason():
 
 # --- Row 2: peer failure / peer_requested_review ---
 
+
 def test_billing_slot_failed_escalates():
     # BillingFinding.failed is always False (a property stub); test peer_requested_review path.
     result = decide(_triage(), _billing(requires_human_review=True), _risk())
@@ -107,6 +110,7 @@ def test_risk_requires_human_review_escalates():
 
 # --- Row 3: low confidence ---
 
+
 def test_low_confidence_escalates():
     result = decide(
         _triage(confidence=0.1),
@@ -120,12 +124,14 @@ def test_low_confidence_escalates():
 
 # --- Row 4: approve ---
 
+
 def test_eligible_low_risk_approve():
     result = decide(_triage(), _billing("eligible"), _risk("low"))
     assert result.outcome == ResolutionOutcome.APPROVE_REFUND
 
 
 # --- Row 5: deny ---
+
 
 def test_ineligible_elevated_risk_deny():
     result = decide(_triage(), _billing("ineligible"), _risk("elevated"))
@@ -139,6 +145,7 @@ def test_ineligible_high_risk_deny():
 
 # --- Row 6: partial credit ---
 
+
 def test_partial_low_risk_offer_partial_credit():
     result = decide(_triage(), _billing("partial"), _risk("low"))
     assert result.outcome == ResolutionOutcome.OFFER_PARTIAL_CREDIT
@@ -151,12 +158,14 @@ def test_partial_elevated_risk_offer_partial_credit():
 
 # --- Row 7: request more information ---
 
+
 def test_indeterminate_billing_request_more_info():
     result = decide(_triage(), _billing("indeterminate"), _risk("low"))
     assert result.outcome == ResolutionOutcome.REQUEST_MORE_INFORMATION
 
 
 # --- Row 8: conflicting analyses (residual) ---
+
 
 def test_eligible_high_risk_escalates_conflicting():
     result = decide(_triage(), _billing("eligible"), _risk("high"))
@@ -175,6 +184,7 @@ def test_ineligible_low_risk_deny():
 
 # --- Determinism ---
 
+
 def test_determinism():
     fixed_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
     cid = uuid.UUID("12345678-1234-5678-1234-567812345678")
@@ -185,6 +195,7 @@ def test_determinism():
 
 
 # --- compute_confidence ---
+
 
 def test_compute_confidence_bounded():
     t = _triage(confidence=1.0)
@@ -202,8 +213,11 @@ def test_compute_confidence_low_when_absent():
 def test_compute_confidence_at_threshold():
     # Just at threshold should not escalate via row 3
     t = Triage(
-        needs_refund_review=True, ambiguous=False, matched_signals=["refund"],
-        rationale="", confidence=CONFIDENCE_THRESHOLD
+        needs_refund_review=True,
+        ambiguous=False,
+        matched_signals=["refund"],
+        rationale="",
+        confidence=CONFIDENCE_THRESHOLD,
     )
     b = _billing(confidence=CONFIDENCE_THRESHOLD)
     r = _risk(score=0.5)  # 1.0 - 0.5 = 0.5 = CONFIDENCE_THRESHOLD
@@ -213,6 +227,7 @@ def test_compute_confidence_at_threshold():
 
 
 # --- No invented facts ---
+
 
 def test_no_invented_facts_missing_billing():
     result = decide(_triage(), None, _risk())

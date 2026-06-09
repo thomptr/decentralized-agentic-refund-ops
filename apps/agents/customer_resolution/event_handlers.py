@@ -102,8 +102,10 @@ def normalize_billing_result(
                 eligibility = "eligible" if elig else "ineligible"
             elif isinstance(elig, str):
                 _valid = ("eligible", "partial", "ineligible", "indeterminate")
-                eligibility = elig if elig in _valid else (
-                    "eligible" if elig.lower() == "true" else "ineligible"
+                eligibility = (
+                    elig
+                    if elig in _valid
+                    else ("eligible" if elig.lower() == "true" else "ineligible")
                 )
             else:
                 return None
@@ -298,9 +300,7 @@ async def intake_handler(
     )
 
     # Phase 10: emit classification event
-    classified_payload = build_issue_classified_payload(
-        ticket, envelope.correlation_id, triage
-    )
+    classified_payload = build_issue_classified_payload(ticket, envelope.correlation_id, triage)
     await publisher.publish(
         classified_payload,
         event_type=TOPIC_ISSUE_CLASSIFIED,
@@ -330,9 +330,7 @@ async def intake_handler(
     case.status = CaseStatus.WAITING_FOR_PEER_REVIEWS
     # Set deadline (recorded but not enforced, research R6)
     deadline_secs = DELEGATION_TIMEOUT_SECONDS
-    case.deadline_at = datetime.fromtimestamp(
-        datetime.now(UTC).timestamp() + deadline_secs, tz=UTC
-    )
+    case.deadline_at = datetime.fromtimestamp(datetime.now(UTC).timestamp() + deadline_secs, tz=UTC)
     await store.save(case)
 
     try:
@@ -440,9 +438,7 @@ async def result_handler(
                     await write_task_audit(publisher, envelope, "completed", task_id)
     else:
         # failed or rejected
-        fail_reason = (
-            result.error.message if result.error else result.status
-        )
+        fail_reason = result.error.message if result.error else result.status
         await store.mark_slot_failed(
             case.case_id, task_id, is_billing=is_billing, reason=fail_reason
         )
@@ -472,7 +468,8 @@ async def _apply_decision(
     policy = PolicyContext()
 
     decision = decide(
-        case.triage or Triage(
+        case.triage
+        or Triage(
             needs_refund_review=True,
             ambiguous=True,
             rationale="No triage available",
@@ -622,30 +619,30 @@ async def risk_result_handler(
     _high_risk = finding.level in ("elevated", "high") or finding.requires_human_review
     _decidable = case.status not in (CaseStatus.DECIDED,) and not is_terminal(case.status)
     if _high_risk and _decidable:
-            decision = CustomerResponseDecisionPayload(
-                case_id=case.correlation_id,
-                ticket_id=case.ticket_id,
-                customer_id=case.customer_id,
-                outcome=ResolutionOutcome.ESCALATE_HUMAN,
-                customer_response=draft_customer_response(ResolutionOutcome.ESCALATE_HUMAN),
-                escalation_reason="elevated_risk",
-                risk_summary=f"level={finding.level}",
-                rationale=f"Risk level {finding.level} forces escalation",
-            )
-            case.risk_result_event_id = envelope.event_id
-            case.risk_result = finding
-            await store.save(case)
-            await _emit_decision_and_draft(
-                case, decision, publisher=publisher, causation_id=envelope.event_id
-            )
-            case.status = CaseStatus.ESCALATED
-            await store.save(case)
-            logger.info(
-                "high_risk_escalation",
-                case_id=str(case.case_id),
-                risk_level=finding.level,
-            )
-            return
+        decision = CustomerResponseDecisionPayload(
+            case_id=case.correlation_id,
+            ticket_id=case.ticket_id,
+            customer_id=case.customer_id,
+            outcome=ResolutionOutcome.ESCALATE_HUMAN,
+            customer_response=draft_customer_response(ResolutionOutcome.ESCALATE_HUMAN),
+            escalation_reason="elevated_risk",
+            risk_summary=f"level={finding.level}",
+            rationale=f"Risk level {finding.level} forces escalation",
+        )
+        case.risk_result_event_id = envelope.event_id
+        case.risk_result = finding
+        await store.save(case)
+        await _emit_decision_and_draft(
+            case, decision, publisher=publisher, causation_id=envelope.event_id
+        )
+        case.status = CaseStatus.ESCALATED
+        await store.save(case)
+        logger.info(
+            "high_risk_escalation",
+            case_id=str(case.case_id),
+            risk_level=finding.level,
+        )
+        return
 
     case.risk_result_event_id = envelope.event_id
     outcome = await store.apply_result(case.case_id, case.risk_task_id, finding)

@@ -157,6 +157,7 @@ def _assert_no_internal_leak(text: str) -> None:
 # Phase 17: build_response_drafted_payload
 # ---------------------------------------------------------------------------
 
+
 # Import is deferred to avoid circular; CustomerResponseDraftedPayload is in payloads
 def build_response_drafted_payload(
     decision_payload: CustomerResponseDecisionPayload,  # type: ignore[name-defined]
@@ -197,9 +198,7 @@ def build_allowed_facts(
         refund_amount=ticket_amount,
         currency=ticket_currency,
         order_reference=ticket_id,
-        billing_outcome_summary=(
-            billing.summary if billing and billing.summary else None
-        ),
+        billing_outcome_summary=(billing.summary if billing and billing.summary else None),
         eligibility=billing.eligible if billing else None,
     )
 
