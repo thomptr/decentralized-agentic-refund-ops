@@ -1,0 +1,31 @@
+name: Integration Tests
+
+# TEMPORARILY DISABLED on push/PR: the testcontainers Kafka integration suite is
+# being stabilized. Run manually from the Actions tab until re-enabled by
+# restoring the push/pull_request triggers below.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches-ignore:
+  #     - main
+  # pull_request:
+  #   branches:
+  #     - main
+
+jobs:
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run integration tests
+        run: uv run pytest -m integration -v

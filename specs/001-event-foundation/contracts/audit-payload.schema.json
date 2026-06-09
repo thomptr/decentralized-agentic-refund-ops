@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://decentralized-agentic-refund-ops/specs/001-event-foundation/audit-payload.schema.json",
+  "title": "AuditPayload",
+  "description": "Payload published to agent.audit.v1 for every event that traverses the foundation (accepted, rejected, or duplicate).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["original_envelope", "outcome", "recorded_at"],
+  "properties": {
+    "original_envelope": {
+      "$ref": "event-envelope.schema.json"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["accepted", "rejected", "duplicate_skipped"]
+    },
+    "reason": {
+      "type": ["string", "null"],
+      "description": "Required when outcome is 'rejected'."
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "rejected" } } },
+      "then": { "required": ["reason"] }
+    }
+  ]
+}

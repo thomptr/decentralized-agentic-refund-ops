@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://decentralized-agentic-refund-ops/specs/001-event-foundation/event-envelope.schema.json",
+  "title": "EventEnvelope",
+  "description": "Canonical wrapper carried by every event on every Kafka topic in the PoC. Immutable once published.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "correlation_id",
+    "causation_id",
+    "agent_id",
+    "tenant_id",
+    "timestamp",
+    "event_type",
+    "schema_version",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Globally unique event identifier (UUID v4). Idempotency key."
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Shared across one logical workflow."
+    },
+    "causation_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Immediate cause event_id. Null only for root events whose event_type is in ROOT_EVENT_TYPES."
+    },
+    "agent_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{1,62}$",
+      "description": "Stable identifier of the publishing agent or utility."
+    },
+    "tenant_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{1,62}$",
+      "description": "Multi-tenancy boundary; PoC default 'poc'."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Producer wall-clock (RFC 3339, tz-aware). Observability only; not used for ordering."
+    },
+    "event_type": {
+      "type": "string",
+      "pattern": "^agent\\.[a-z_]+\\.v\\d+$",
+      "description": "Identifies the payload schema and version. The vN suffix must match schema_version's major component."
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the payload schema. Major must equal the vN in event_type."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Type-specific body. Validated against the model registered for event_type."
+    }
+  }
+}

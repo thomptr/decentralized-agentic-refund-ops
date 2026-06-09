@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://decentralized-agentic-refund-ops/specs/001-event-foundation/a2a-message.schema.json",
+  "title": "A2AMessage",
+  "description": "Pydantic-mirrored A2A message structure, used as the payload of envelopes whose event_type is agent.message.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["role", "parts"],
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": ["user", "agent"]
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/A2APart" }
+    },
+    "task_id": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    }
+  },
+  "$defs": {
+    "A2APart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["text", "data", "file"]
+        },
+        "text": { "type": ["string", "null"] },
+        "data": { "type": ["object", "null"] },
+        "file_uri": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "text" } } },
+          "then": { "required": ["text"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "data" } } },
+          "then": { "required": ["data"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "file" } } },
+          "then": { "required": ["file_uri"] }
+        }
+      ]
+    }
+  }
+}
