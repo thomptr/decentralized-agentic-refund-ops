@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://decentralized-agentic-refund-ops/specs/002-a2a-runtime-contract/task-result.schema.json",
+  "title": "TaskResult",
+  "description": "Structured outcome returned for a task, as the payload of envelopes whose event_type is agent.task_result.v1. Published to local.agent.task.result.v1; the result envelope's causation_id points at the request envelope's event_id.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "status", "performer_agent_id"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Matches the originating TaskRequest.task_id."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "failed", "rejected"]
+    },
+    "performer_agent_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{1,62}$"
+    },
+    "output": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "https://decentralized-agentic-refund-ops/specs/001-event-foundation/a2a-message.schema.json" }
+      ],
+      "description": "Required (non-null) when status is 'completed'; null otherwise."
+    },
+    "error": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/TaskError" }
+      ],
+      "description": "Required (non-null) when status is 'failed' or 'rejected'; null when 'completed'."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "completed" } } },
+      "then": {
+        "properties": { "error": { "type": "null" } },
+        "required": ["output"],
+        "not": { "properties": { "output": { "type": "null" } } }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" } } },
+      "then": {
+        "properties": {
+          "output": { "type": "null" },
+          "error": { "properties": { "category": { "enum": ["handler_error", "internal"] } } }
+        },
+        "required": ["error"]
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "rejected" } } },
+      "then": {
+        "properties": {
+          "output": { "type": "null" },
+          "error": { "properties": { "category": { "enum": ["validation", "unsupported_capability", "duplicate"] } } }
+        },
+        "required": ["error"]
+      }
+    }
+  ],
+  "$defs": {
+    "TaskError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "message"],
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": ["validation", "unsupported_capability", "handler_error", "duplicate", "internal"]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    }
+  }
+}

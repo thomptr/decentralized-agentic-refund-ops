@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://decentralized-agentic-refund-ops/specs/002-a2a-runtime-contract/task-request.schema.json",
+  "title": "TaskRequest",
+  "description": "Structured task request submitted to an agent's endpoint topic, as the payload of envelopes whose event_type is agent.task_request.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "capability", "requester_agent_id", "target_agent_id", "input"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Globally unique; basis for task-level idempotency (distinct from envelope event_id)."
+    },
+    "capability": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{1,62}$",
+      "description": "Must match a Capability.id declared on the target agent's card."
+    },
+    "requester_agent_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{1,62}$"
+    },
+    "target_agent_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{1,62}$"
+    },
+    "input": {
+      "$ref": "https://decentralized-agentic-refund-ops/specs/001-event-foundation/a2a-message.schema.json"
+    }
+  }
+}

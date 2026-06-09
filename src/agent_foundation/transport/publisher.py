@@ -102,8 +102,14 @@ class Publisher:
         event_type: str,
         correlation_id: UUID,
         causation_id: UUID | None = None,
+        *,
+        topic: str | None = None,
     ) -> EventEnvelope:
-        """Build, validate, serialize, and send an envelope. All exceptions propagate."""
+        """Build, validate, serialize, and send an envelope. All exceptions propagate.
+
+        topic: optional override; when set, bypasses registry topic resolution while
+        keeping full payload validation (e.g. for dynamic per-agent endpoint topics).
+        """
         try:
             envelope = self._build_envelope(payload, event_type, correlation_id, causation_id)
         except (UnknownEventType, PayloadValidationError, MissingCausation, ValueError) as exc:
@@ -115,11 +121,11 @@ class Publisher:
             )
             raise
 
-        topic = self._resolve_topic(event_type)
+        resolved_topic = topic if topic is not None else self._resolve_topic(event_type)
         data = self._serialize(envelope)
         try:
             await self._producer.send_and_wait(
-                topic,
+                resolved_topic,
                 value=data,
                 key=str(envelope.event_id).encode(),
             )
@@ -129,7 +135,7 @@ class Publisher:
                 error=str(exc),
                 event_id=str(envelope.event_id),
                 event_type=event_type,
-                topic=topic,
+                topic=resolved_topic,
             )
             raise
 
@@ -138,7 +144,7 @@ class Publisher:
             event_id=str(envelope.event_id),
             correlation_id=str(correlation_id),
             event_type=event_type,
-            topic=topic,
+            topic=resolved_topic,
         )
         return envelope
 
