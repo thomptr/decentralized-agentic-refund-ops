@@ -1,8 +1,9 @@
 """Async Kafka consumer with envelope validation, idempotency, and audit integration."""
+
 from __future__ import annotations
 
 import asyncio
-import json
+import contextlib
 from collections.abc import Callable, Coroutine
 from typing import Any
 
@@ -63,7 +64,8 @@ class Consumer:
         publisher: Any = None,
     ) -> None:
         """Consume messages, validate envelopes, call handler, write audit records."""
-        from aiokafka import AIOKafkaConsumer, TopicPartition  # type: ignore[import-untyped]
+        from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped]
+
         from agent_foundation.audit.store import write_audit
         from agent_foundation.idempotency import IdempotencyTracker
 
@@ -96,7 +98,7 @@ class Consumer:
                     break
                 try:
                     msg = await asyncio.wait_for(self._consumer.getone(), timeout=0.5)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
                 except Exception as exc:
                     _log.error(CONSUMER_ERROR, error=str(exc))
@@ -116,7 +118,9 @@ class Consumer:
                         try:
                             partial = _make_partial_envelope(raw)
                             if partial:
-                                await write_audit(publisher, partial, "rejected", "invalid_envelope")
+                                await write_audit(
+                                    publisher, partial, "rejected", "invalid_envelope"
+                                )
                         except Exception:
                             pass
                     continue
@@ -171,16 +175,12 @@ class Consumer:
                     continue
 
                 if tracker is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         await tracker.mark_processed(envelope.event_id)
-                    except Exception:
-                        pass
 
                 if publisher:
-                    try:
+                    with contextlib.suppress(Exception):
                         await write_audit(publisher, envelope, "accepted", None)
-                    except Exception:
-                        pass
 
         finally:
             await self._consumer.stop()

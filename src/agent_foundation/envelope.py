@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 def _build_root_event_types() -> frozenset[str]:
     import os
+
     env = os.environ.get("AGENT_ENVIRONMENT", "local")
     return frozenset(
         {
@@ -93,9 +94,7 @@ class EventEnvelope(BaseModel):
     @classmethod
     def validate_event_type(cls, v: str) -> str:
         if not _EVENT_TYPE_RE.match(v):
-            raise ValueError(
-                f"event_type must match {_EVENT_TYPE_RE.pattern!r}, got {v!r}"
-            )
+            raise ValueError(f"event_type must match {_EVENT_TYPE_RE.pattern!r}, got {v!r}")
         return v
 
     @field_validator("schema_version")
@@ -106,7 +105,7 @@ class EventEnvelope(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_causation_id(self) -> "EventEnvelope":
+    def validate_causation_id(self) -> EventEnvelope:
         if self.causation_id is None and self.event_type not in ROOT_EVENT_TYPES:
             raise MissingCausation(
                 f"causation_id is required for non-root event type {self.event_type!r}; "

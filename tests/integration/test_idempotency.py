@@ -1,4 +1,5 @@
 """Integration tests: idempotency tracker with real Kafka broker."""
+
 from __future__ import annotations
 
 import asyncio
@@ -22,16 +23,20 @@ def kafka_bootstrap_servers() -> str:
 
 @pytest.fixture
 def agent_identity() -> AgentIdentity:
-    return AgentIdentity(agent_id="test.idempotent", display_name="Idempotency Test", tenant_id="poc")
+    return AgentIdentity(
+        agent_id="test.idempotent", display_name="Idempotency Test", tenant_id="poc"
+    )
 
 
 @pytest.mark.asyncio
-async def test_replay_deduplicates(kafka_bootstrap_servers: str, agent_identity: AgentIdentity) -> None:
+async def test_replay_deduplicates(
+    kafka_bootstrap_servers: str, agent_identity: AgentIdentity
+) -> None:
     """Publish one event; replay the same stream twice; handler called exactly once."""
-    from agent_foundation.transport.publisher import Publisher
-    from agent_foundation.transport.consumer import Consumer
-    from agent_foundation.transport.topics import create_topics, TOPIC_SAMPLE
     from agent_foundation.envelope import EventEnvelope
+    from agent_foundation.transport.consumer import Consumer
+    from agent_foundation.transport.publisher import Publisher
+    from agent_foundation.transport.topics import TOPIC_SAMPLE, create_topics
 
     await create_topics(kafka_bootstrap_servers)
 
@@ -77,7 +82,9 @@ async def test_replay_deduplicates(kafka_bootstrap_servers: str, agent_identity:
 
 
 @pytest.mark.asyncio
-async def test_idempotency_tracker_recovery(kafka_bootstrap_servers: str, agent_identity: AgentIdentity) -> None:
+async def test_idempotency_tracker_recovery(
+    kafka_bootstrap_servers: str, agent_identity: AgentIdentity
+) -> None:
     """IdempotencyTracker rebuilds its LRU from the compacted topic on restart."""
     from agent_foundation.idempotency import IdempotencyTracker
     from agent_foundation.transport.topics import create_topics
@@ -96,4 +103,6 @@ async def test_idempotency_tracker_recovery(kafka_bootstrap_servers: str, agent_
     await asyncio.sleep(1.0)
     tracker2 = IdempotencyTracker(consumer_name, kafka_bootstrap_servers)
     await tracker2.initialize()
-    assert await tracker2.is_duplicate(event_id), "Tracker should recognise already-processed event after restart"
+    assert await tracker2.is_duplicate(event_id), (
+        "Tracker should recognise already-processed event after restart"
+    )

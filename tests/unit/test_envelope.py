@@ -1,20 +1,20 @@
 """Unit tests for EventEnvelope, AgentIdentity, and payload registry."""
+
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from agent_foundation.envelope import (
+    ROOT_EVENT_TYPES,
     AgentIdentity,
     EventEnvelope,
-    MissingCausation,
-    ROOT_EVENT_TYPES,
 )
 from agent_foundation.payloads import (
     PAYLOAD_REGISTRY,
-    PayloadValidationError,
     UnknownEventType,
     lookup,
 )
@@ -22,17 +22,17 @@ from agent_foundation.payloads.sample import SamplePayload
 
 
 def _base_envelope(**overrides: object) -> dict[str, object]:
-    base: dict[str, object] = dict(
-        event_id=uuid.uuid4(),
-        correlation_id=uuid.uuid4(),
-        causation_id=None,
-        agent_id="test.agent",
-        tenant_id="poc",
-        timestamp=datetime.now(UTC),
-        event_type="agent.sample.v1",
-        schema_version="1.0.0",
-        payload={"message": "hello"},
-    )
+    base: dict[str, object] = {
+        "event_id": uuid.uuid4(),
+        "correlation_id": uuid.uuid4(),
+        "causation_id": None,
+        "agent_id": "test.agent",
+        "tenant_id": "poc",
+        "timestamp": datetime.now(UTC),
+        "event_type": "agent.sample.v1",
+        "schema_version": "1.0.0",
+        "payload": {"message": "hello"},
+    }
     base.update(overrides)
     return base
 
@@ -43,15 +43,15 @@ class TestEventEnvelopeValidation:
         assert e.event_type == "agent.sample.v1"
 
     def test_missing_agent_id_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EventEnvelope(**_base_envelope(agent_id=""))  # type: ignore[arg-type]
 
     def test_bad_agent_id_pattern_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EventEnvelope(**_base_envelope(agent_id="BAD_ID"))  # type: ignore[arg-type]
 
     def test_bad_tenant_id_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EventEnvelope(**_base_envelope(tenant_id="BAD!"))  # type: ignore[arg-type]
 
     def test_non_root_without_causation_raises(self) -> None:
@@ -66,20 +66,20 @@ class TestEventEnvelopeValidation:
         assert e.causation_id is not None
 
     def test_extra_fields_rejected(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EventEnvelope(**_base_envelope(unexpected_field="x"))  # type: ignore[arg-type]
 
     def test_frozen_immutability(self) -> None:
         e = EventEnvelope(**_base_envelope())  # type: ignore[arg-type]
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             e.agent_id = "changed"  # type: ignore[misc]
 
     def test_invalid_event_type_pattern(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EventEnvelope(**_base_envelope(event_type="INVALID"))  # type: ignore[arg-type]
 
     def test_invalid_schema_version(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EventEnvelope(**_base_envelope(schema_version="not-semver"))  # type: ignore[arg-type]
 
     def test_root_event_types_set(self) -> None:
@@ -96,16 +96,16 @@ class TestAgentIdentityValidation:
         assert a.agent_id == "billing.agent"
 
     def test_display_name_too_long(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             AgentIdentity(agent_id="test.agent", display_name="x" * 81, tenant_id="poc")
 
     def test_display_name_empty(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             AgentIdentity(agent_id="test.agent", display_name="", tenant_id="poc")
 
     def test_frozen_immutability(self) -> None:
         a = AgentIdentity(agent_id="test.agent", display_name="Test", tenant_id="poc")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             a.agent_id = "other"  # type: ignore[misc]
 
 
@@ -128,9 +128,9 @@ class TestPayloadRegistry:
         assert p.message == "hello"
 
     def test_sample_payload_empty_message(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SamplePayload(message="")
 
     def test_sample_payload_too_long(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SamplePayload(message="x" * 201)

@@ -1,12 +1,13 @@
 """Integration tests: full publish/consume round-trip against a real Kafka broker."""
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import uuid
 from datetime import UTC, datetime
 
 import pytest
-import pytest_asyncio
 
 from agent_foundation.envelope import AgentIdentity, EventEnvelope
 from agent_foundation.payloads.sample import SamplePayload
@@ -24,15 +25,19 @@ def kafka_bootstrap_servers() -> str:
 
 @pytest.fixture
 def agent_identity() -> AgentIdentity:
-    return AgentIdentity(agent_id="test.integration", display_name="Integration Test", tenant_id="poc")
+    return AgentIdentity(
+        agent_id="test.integration", display_name="Integration Test", tenant_id="poc"
+    )
 
 
 @pytest.mark.asyncio
-async def test_publish_consume_roundtrip(kafka_bootstrap_servers: str, agent_identity: AgentIdentity) -> None:
+async def test_publish_consume_roundtrip(
+    kafka_bootstrap_servers: str, agent_identity: AgentIdentity
+) -> None:
     """Publish a sample event and consume it; verify all envelope fields survive."""
-    from agent_foundation.transport.publisher import Publisher
     from agent_foundation.transport.consumer import Consumer
-    from agent_foundation.transport.topics import create_topics, TOPIC_SAMPLE
+    from agent_foundation.transport.publisher import Publisher
+    from agent_foundation.transport.topics import TOPIC_SAMPLE, create_topics
 
     await create_topics(kafka_bootstrap_servers)
 
@@ -66,10 +71,8 @@ async def test_publish_consume_roundtrip(kafka_bootstrap_servers: str, agent_ide
         sent = await pub.publish(payload, "agent.sample.v1", corr_id)
 
     # Wait for receipt
-    try:
+    with contextlib.suppress(TimeoutError):
         await asyncio.wait_for(asyncio.shield(stop_event.wait()), timeout=10.0)
-    except asyncio.TimeoutError:
-        pass
 
     stop_event.set()
     await asyncio.wait_for(task, timeout=5.0)
@@ -83,13 +86,16 @@ async def test_publish_consume_roundtrip(kafka_bootstrap_servers: str, agent_ide
 
 
 @pytest.mark.asyncio
-async def test_schema_rejection_writes_audit(kafka_bootstrap_servers: str, agent_identity: AgentIdentity) -> None:
+async def test_schema_rejection_writes_audit(
+    kafka_bootstrap_servers: str, agent_identity: AgentIdentity
+) -> None:
     """Publish an event with empty payload; consumer writes rejected audit record."""
     from aiokafka import AIOKafkaProducer  # type: ignore[import-untyped]
-    from agent_foundation.transport.topics import create_topics, TOPIC_SAMPLE, TOPIC_AUDIT
+
+    from agent_foundation.audit.store import consume_all_audit_records
     from agent_foundation.envelope import EventEnvelope
     from agent_foundation.transport.publisher import Publisher
-    from agent_foundation.audit.store import consume_all_audit_records
+    from agent_foundation.transport.topics import TOPIC_SAMPLE, create_topics
 
     await create_topics(kafka_bootstrap_servers)
 
@@ -119,7 +125,6 @@ async def test_schema_rejection_writes_audit(kafka_bootstrap_servers: str, agent
         await producer.stop()
 
     stop_event = asyncio.Event()
-    rejection_written = asyncio.Event()
 
     async with Publisher(agent_identity, kafka_bootstrap_servers) as pub:
         from agent_foundation.transport.consumer import Consumer

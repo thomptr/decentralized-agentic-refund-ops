@@ -1,4 +1,5 @@
 """In-process LRU + Kafka-backed idempotency tracker."""
+
 from __future__ import annotations
 
 import json
@@ -43,7 +44,11 @@ class IdempotencyTracker:
 
     async def initialize(self) -> None:
         """Rebuild LRU from compacted Kafka topic on startup."""
-        from agent_foundation.transport.topics import processed_id_topic, processed_id_new_topic, create_topics
+        from agent_foundation.transport.topics import (
+            create_topics,
+            processed_id_new_topic,
+            processed_id_topic,
+        )
 
         topic = processed_id_topic(self._consumer_name)
         try:
@@ -91,7 +96,8 @@ class IdempotencyTracker:
         await self._persist(event_id)
 
     async def _persist(self, event_id: UUID) -> None:
-        from aiokafka import AIOKafkaProducer  # type: ignore[import-untyped]
+        from aiokafka import AIOKafkaProducer  # type: ignore[import-untyped,unused-ignore]
+
         from agent_foundation.transport.topics import processed_id_topic
 
         topic = processed_id_topic(self._consumer_name)

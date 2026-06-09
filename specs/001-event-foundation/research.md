@@ -248,9 +248,84 @@ and SC-005.
 
 ---
 
+## R11. GitHub Actions runner and uv integration
+
+**Decision**: Use `ubuntu-latest` GitHub-hosted runners with the `astral-sh/setup-uv@v4` action. Enable `enable-cache: true` so the uv dependency cache is restored across workflow runs. All jobs install dependencies with `uv sync --extra dev`.
+
+**Rationale**: `astral-sh/setup-uv` is the official uv action; it handles uv binary installation, Python pinning (respects `.python-version`), and dependency caching in one step. Ubuntu-latest runners have Docker pre-installed, which is needed for the integration test job.
+
+**Alternatives considered**:
+- **`actions/setup-python` + pip install** — slower (no lock-file-driven caching), ignores `uv.lock`.
+- **`cache: pip` with requirements.txt export** — requires a separate export step and loses uv's dependency resolution guarantees.
+
+---
+
+## R12. pip-audit integration
+
+**Decision**: Add `pip-audit>=2.7` to `[project.optional-dependencies] dev` in `pyproject.toml`. Run in CI as `uv run pip-audit`. This scans the resolved virtual environment for packages with known CVEs in OSV/PyPI advisory databases.
+
+**Rationale**: `pip-audit` is the de-facto standard for Python dependency vulnerability scanning; it integrates naturally with uv virtual environments and exits non-zero on any unfixed vulnerability, making it straightforward to use as a blocking CI step.
+
+**Alternatives considered**:
+- **`safety check`** — requires a paid subscription for the full CVE database as of 2024; pip-audit uses OSV (open, free).
+- **GitHub Dependabot alone** — Dependabot only files PRs; it does not block CI on open vulnerabilities.
+- **`uvx pip-audit` (ephemeral)** — avoids adding a dev dependency but is slower (re-downloads on every run) and misses cache.
+
+---
+
+## R13. bandit SAST configuration
+
+**Decision**: Add `bandit>=1.7` to `[project.optional-dependencies] dev`. Run in CI as `uv run bandit -r src/ -ll`. The `-ll` flag (medium severity and above, medium confidence and above) filters out low-noise informational findings while catching real issues like hardcoded credentials and unsafe subprocess calls. Test files are excluded (bandit scans `src/` only).
+
+**Rationale**: bandit is the standard Python SAST tool. Running at `-ll` (medium+) is the community-accepted default that avoids alert fatigue from low-confidence findings while surfacing actionable security issues. Scoping to `src/` ensures test utilities do not trigger false positives (e.g., `subprocess` calls in test helpers).
+
+**Alternatives considered**:
+- **Semgrep** — more powerful but heavier; requires a rule-set configuration. Appropriate for a larger codebase; overkill for a PoC.
+- **GitHub CodeQL** — comprehensive but requires GitHub Advanced Security (paid for private repos). The PoC may be private.
+- **`-l` (low severity)** — too noisy; would generate false positives on common Python patterns.
+
+---
+
+## R14. Workflow file structure
+
+**Decision**: Two separate workflow files:
+- `.github/workflows/ci.yml` — three required jobs: `lint` (ruff + mypy), `security` (pip-audit + bandit), `test` (pytest unit + contract). Triggers on PRs to `main` and pushes to any non-main branch.
+- `.github/workflows/integration.yml` — one non-blocking job: `integration` (pytest -m integration). Same triggers. This file is **never** added to GitHub branch protection required-status-checks.
+
+**Rationale**: Separating required and non-blocking workflows is cleaner than `continue-on-error: true` — the integration workflow simply never appears in the required-check list. This makes the PR "all checks required to pass" semantics explicit and auditable from branch protection settings rather than embedded in YAML flags.
+
+**Alternatives considered**:
+- **Single workflow with `continue-on-error: true` on the integration job** — works but the "warning" status in the PR UI is confusing to reviewers; the job still appears in the required-check list if a branch protection rule uses "require all checks."
+- **Separate workflow triggered only on push to `main`** — integration tests would not run on feature branches, losing pre-merge signal.
+
+---
+
+## R15. New dev dependencies for CI
+
+Two packages added to `[project.optional-dependencies] dev`:
+- `pip-audit>=2.7` — CVE scanning (R12)
+- `bandit>=1.7` — SAST (R13)
+
+These are dev-only; they do not appear in the runtime distribution. Both are justified in plan.md Complexity Tracking per Principle V.
+
+---
+
+## R16. Branch protection configuration (out-of-scope for code)
+
+The GitHub repository branch protection rules for `main` must require the following status checks (job names from `ci.yml`):
+- `Lint & Type Check`
+- `Security Scan`
+- `Unit & Contract Tests`
+
+The `Integration Tests` job (from `integration.yml`) is intentionally excluded. This configuration is applied in the GitHub repository settings UI and is not managed by code in this repository.
+
+---
+
 ## Summary of resolved NEEDS CLARIFICATION
 
 None remained after the plan's Technical Context; all decisions above were derived from the spec,
 the constitution, and the user-provided plan input. Where the constitution contained an internal
 inconsistency (Tech-Constraints "in-memory default" vs. Principle II "exclusively via Kafka"),
 Principle II is treated as authoritative — see plan.md's Complexity Tracking.
+
+R11–R16 above resolve the CI/CD addition introduced by FR-016 through FR-019 (added via `/speckit-clarify` on 2026-06-09).

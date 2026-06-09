@@ -40,5 +40,5 @@ def lookup(event_type: str) -> type[BaseModel]:
     """Return the Pydantic model registered for the given event_type."""
     try:
         return PAYLOAD_REGISTRY[event_type]
-    except KeyError:
-        raise UnknownEventType(event_type)
+    except KeyError as err:
+        raise UnknownEventType(event_type) from err

@@ -1,4 +1,5 @@
 """Audit write helper and correlation / window query helpers."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -16,8 +17,8 @@ _log = get_logger(__name__)
 
 
 async def write_audit(
-    publisher: "Publisher",
-    envelope: "EventEnvelope",
+    publisher: Publisher,
+    envelope: EventEnvelope,
     outcome: str,
     reason: str | None,
 ) -> None:
@@ -60,10 +61,7 @@ async def query_by_correlation(
 ) -> list[AuditPayload]:
     """Return all AuditPayload records for a correlation_id, ordered by Kafka offset."""
     records = await consume_all_audit_records(bootstrap_servers)
-    return [
-        r for r in records
-        if r.original_envelope.correlation_id == correlation_id
-    ]
+    return [r for r in records if r.original_envelope.correlation_id == correlation_id]
 
 
 async def query_by_window(
@@ -79,6 +77,7 @@ async def query_by_window(
 async def consume_all_audit_records(bootstrap_servers: str) -> list[AuditPayload]:
     """Consume the entire audit topic from earliest and return parsed AuditPayload records."""
     from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped]
+
     from agent_foundation.envelope import EventEnvelope as EE
     from agent_foundation.transport.topics import TOPIC_AUDIT
 

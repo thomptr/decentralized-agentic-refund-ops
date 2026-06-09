@@ -24,6 +24,12 @@ feature.
 - `pytest`, `pytest-asyncio`, `testcontainers[kafka]` — test infrastructure.
 - `typer` — minimal CLI for the smoke-test publish/consume utilities.
 
+**CI/CD Dev Dependencies** (added 2026-06-09, FR-016–FR-019):
+- `ruff` — lint + format enforcement (already present).
+- `mypy` — strict type checking (already present).
+- `pip-audit>=2.7` — dependency CVE scanning (new).
+- `bandit>=1.7` — Python SAST (new).
+
 **Storage**: Kafka itself acts as the event store. A dedicated compacted topic
 (`agent.audit.v1`) holds the canonical audit record. No external database in this feature.
 
@@ -101,7 +107,13 @@ tests/
 └── contract/            # Schema round-trip + A2A-mapping conformance tests
 
 infra/
-└── docker-compose.yml   # Single-broker Kafka (KRaft mode) + kafka-ui
+└── local/
+    └── docker-compose.yml  # Single-broker Redpanda (Kafka-compatible) + Kafkbat UI
+
+.github/
+├── workflows/
+│   ├── ci.yml               # Required gate: lint, security, unit+contract tests
+│   └── integration.yml      # Non-blocking: integration tests (testcontainers)
 
 pyproject.toml           # Project deps, package config, lint/test entry points
 README.md                # Top-level quick-start pointing at quickstart.md
@@ -119,3 +131,5 @@ at PoC scale (Principle V).
 | Kafka chosen over the constitution's "in-memory default" Event-Transport line | Constitution Principle II explicitly mandates "agents communicate exclusively via Kafka"; the Tech-Constraints "in-memory default" sentence pre-dates that principle and is treated as superseded by Principle II. User plan input also names Kafka explicitly. | An in-memory queue cannot demonstrate replay-friendly offsets, log-compacted audit, or partition-based ordering — all of which the spec requires (FR-009 through FR-012, SC-005, SC-006). Substituting an in-memory queue would invalidate the foundation's purpose. |
 | `aiokafka` async client over `kafka-python` (sync) | The PoC will run many independent agents in a single process during local development; async I/O avoids one thread per consumer. | A sync client would force a thread-per-consumer model and complicate the smoke-test CLI. |
 | `testcontainers[kafka]` as a dev dependency | Integration tests must hit a real broker to satisfy Principle III (idempotency cannot be proven against mocks) and SC-005 (replay determinism). | Mocking Kafka would mask broker-driven ordering and offset semantics, defeating the test. |
+| `pip-audit` as a dev dependency (FR-016) | Dependency CVE scanning is required by FR-016; pip-audit is the only open-source tool that scans the uv virtual environment against OSV without a paid subscription. | `safety check` requires a paid license for the full database; Dependabot PRs do not block CI. |
+| `bandit` as a dev dependency (FR-016) | Python SAST is required by FR-016; bandit is the standard SAST tool in the Python ecosystem. Scoped to `src/` at `-ll` (medium+) to minimise false positives. | Semgrep is more powerful but requires rule-set configuration and is overkill for a PoC; GitHub CodeQL requires GitHub Advanced Security on private repos. |

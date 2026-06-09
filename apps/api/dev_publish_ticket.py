@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Dev-only script: publishes a sample local.support.ticket.created.v1 event. Requires Kafka at localhost:9092 (docker compose -f infra/local/docker-compose.yml up -d)."""
+"""Dev-only script: publishes a sample local.support.ticket.created.v1 event.
+
+Requires Kafka at localhost:9092 (docker compose -f infra/local/docker-compose.yml up -d).
+"""
+
 from __future__ import annotations
 
 import asyncio

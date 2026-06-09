@@ -1,7 +1,7 @@
 """Async Kafka publisher with envelope construction, schema validation, and structlog."""
+
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from types import TracebackType
 from typing import Any
@@ -9,7 +9,11 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 
-from agent_foundation.envelope import AgentIdentity, EventEnvelope, MissingCausation, ROOT_EVENT_TYPES
+from agent_foundation.envelope import (
+    AgentIdentity,
+    EventEnvelope,
+    MissingCausation,
+)
 from agent_foundation.logging import (
     EVENT_PUBLISH_FAILED,
     EVENT_PUBLISHED,
@@ -32,7 +36,7 @@ class Publisher:
         self._bootstrap_servers = bootstrap_servers
         self._producer: Any = None
 
-    async def __aenter__(self) -> "Publisher":
+    async def __aenter__(self) -> Publisher:
         from aiokafka import AIOKafkaProducer  # type: ignore[import-untyped]
 
         self._producer = AIOKafkaProducer(
@@ -85,8 +89,8 @@ class Publisher:
 
         try:
             return TOPIC_NAMES[event_type]
-        except KeyError:
-            raise UnknownEventType(event_type)
+        except KeyError as err:
+            raise UnknownEventType(event_type) from err
 
     @staticmethod
     def _serialize(envelope: EventEnvelope) -> bytes:

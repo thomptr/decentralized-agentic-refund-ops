@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Dev-only script: subscribes to all initial canonical topics and prints each validated EventEnvelope as formatted JSON. Requires Kafka at localhost:9092 (docker compose -f infra/local/docker-compose.yml up -d). Run with: python apps/api/dev_consume_events.py"""
+"""Dev-only script: subscribes to canonical topics and prints each validated EventEnvelope.
+
+Requires Kafka at localhost:9092 (docker compose -f infra/local/docker-compose.yml up -d).
+Run with: python apps/api/dev_consume_events.py
+"""
+
 from __future__ import annotations
 
 import asyncio

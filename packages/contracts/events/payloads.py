@@ -3,6 +3,7 @@
 These contracts are NOT registered in the foundation PAYLOAD_REGISTRY.
 Future agents import from here and register their own event types.
 """
+
 from __future__ import annotations
 
 from datetime import datetime

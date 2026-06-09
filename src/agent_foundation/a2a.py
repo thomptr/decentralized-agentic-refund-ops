@@ -15,7 +15,7 @@ class A2APart(BaseModel):
     file_uri: str | None = None
 
     @model_validator(mode="after")
-    def validate_conditional_fields(self) -> "A2APart":
+    def validate_conditional_fields(self) -> A2APart:
         if self.type == "text" and self.text is None:
             raise ValueError("text is required when type is 'text'")
         if self.type == "data" and self.data is None:
@@ -33,7 +33,7 @@ class A2AMessage(BaseModel):
     task_id: UUID | None = None
 
     @model_validator(mode="after")
-    def validate_parts_nonempty(self) -> "A2AMessage":
+    def validate_parts_nonempty(self) -> A2AMessage:
         if not self.parts:
             raise ValueError("parts must be non-empty")
         return self

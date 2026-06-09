@@ -1,17 +1,21 @@
 """Contract tests: round-trip serialization for all schema types."""
+
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
-from agent_foundation.a2a import A2AMessage, A2APart, A2ATask
+from agent_foundation.a2a import A2AMessage, A2APart
 from agent_foundation.envelope import EventEnvelope
 from agent_foundation.payloads.sample import AuditPayload, SamplePayload
 
 
-def _make_envelope(event_type: str = "agent.sample.v1", causation_id: uuid.UUID | None = None) -> EventEnvelope:
+def _make_envelope(
+    event_type: str = "agent.sample.v1", causation_id: uuid.UUID | None = None
+) -> EventEnvelope:
     return EventEnvelope(
         event_id=uuid.uuid4(),
         correlation_id=uuid.uuid4(),
@@ -69,11 +73,11 @@ class TestA2AMessageRoundTrip:
         assert restored.parts[0].file_uri == "s3://bucket/key"
 
     def test_missing_text_in_text_part_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             A2APart(type="text")
 
     def test_empty_parts_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             A2AMessage(role="agent", parts=[])
 
 

@@ -8,6 +8,16 @@
 
 **Input**: User description: "Create the foundation for a proof-of-concept decentralized multi-agent system. The agents will communicate using the Agent2Agent protocol. The system must use structured event contracts for all inter-agent work and audit records. It must support local development with Kafka-compatible infrastructure using docker compose, shared Pydantic schemas, correlation IDs, causation IDs, timestamps, agent identity, and event replay-friendly design. This spec should not implement business agents yet."
 
+## Clarifications
+
+### Session 2026-06-09
+
+- Q: Which security scanning tools should run in GitHub Actions CI? → A: `pip-audit` (dependency CVE scanning) + `bandit` (Python SAST), both required to pass before merge.
+- Q: Should integration tests (requires Docker/Kafka) run in the required CI gate? → A: Unit + contract tests are the required gate; integration tests run in a separate non-blocking workflow job.
+- Q: Which lint checks are required to pass before merge? → A: `ruff check` (lint) + `ruff format --check` (format enforcement) + `mypy` (strict type checking), all three blocking.
+- Q: When should the CI workflow trigger? → A: On pull requests targeting `main` and on pushes to any non-main branch (early feedback on feature branches).
+- Q: Which Python version(s) should CI test against? → A: Python 3.12 only, matching the `.python-version` pin and the constitution's single-version mandate.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Stand Up the Local Event Backbone (Priority: P1)
@@ -201,6 +211,18 @@ each published event appears exactly once with its full envelope intact, ordered
   test event, consume it, and inspect the audit record MUST be present in the repository.
 - **FR-015**: The system MUST NOT ship any domain-specific (refund-business) agent logic in this
   feature. The foundation is the deliverable.
+- **FR-016**: The repository MUST include a GitHub Actions CI workflow that triggers on pull
+  requests targeting `main` and on pushes to any non-main branch. The workflow MUST execute
+  `pip-audit` (dependency CVE scanning) and `bandit` (Python SAST) as required checks; a PR
+  MUST NOT be mergeable if either check fails.
+- **FR-017**: The CI workflow's required gate MUST run the unit and contract test suites
+  (`pytest tests/unit/ tests/contract/`). Integration tests (which require a live Kafka broker)
+  MUST run in a separate, non-blocking workflow job and MUST NOT block PR merges.
+- **FR-018**: The CI required gate MUST enforce code quality via `ruff check` (lint), `ruff format
+  --check` (formatting), and `mypy` (strict type checking). All three checks MUST pass before a PR
+  can be merged.
+- **FR-019**: The CI workflow MUST run against Python 3.12 exclusively, matching the repository's
+  `.python-version` pin. Multi-version matrix testing is explicitly out of scope for this PoC.
 
 ### Key Entities
 
@@ -242,6 +264,10 @@ each published event appears exactly once with its full envelope intact, ordered
   events in original order in 100% of test runs.
 - **SC-007**: Zero domain-specific refund agents exist in the foundation deliverable; a reviewer
   can verify the deliverable contains only transport, contract, audit, and test-utility code.
+- **SC-008**: Every pull request targeting `main` is automatically gated by a GitHub Actions
+  workflow that runs lint (`ruff`), type checking (`mypy`), format enforcement (`ruff format`),
+  security scanning (`pip-audit` + `bandit`), and the unit + contract test suite. A PR whose
+  workflow run reports any failure MUST NOT be mergeable.
 
 ## Assumptions
 

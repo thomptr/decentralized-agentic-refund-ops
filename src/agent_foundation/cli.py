@@ -1,17 +1,17 @@
-"""Typer CLI for agent_foundation: health, publish-sample, consume-sample, publish-chain, query-audit, replay, query-rejections."""
+"""Typer CLI for agent_foundation: health, publish-sample, consume-sample, etc."""
+
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import signal
-import sys
 import uuid
 from datetime import UTC, datetime
-from typing import Optional
 from uuid import UUID
 
 import typer
 
-from agent_foundation.envelope import AgentIdentity, EventEnvelope, ROOT_EVENT_TYPES
+from agent_foundation.envelope import AgentIdentity, EventEnvelope
 from agent_foundation.logging import configure_logging, get_logger
 
 app = typer.Typer(name="agent-foundation", add_completion=False)
@@ -49,7 +49,7 @@ def health(
         admin = AIOKafkaAdminClient(bootstrap_servers=broker)
         try:
             await admin.start()
-            meta = await admin.describe_cluster()  # type: ignore[attr-defined]
+            meta = await admin.describe_cluster()  # type: ignore[attr-defined,unused-ignore]
             _ = meta
             logger.info("health.broker", broker=broker, status="ok")
         except Exception as exc:
@@ -57,16 +57,12 @@ def health(
             ok = False
             return ok
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 await admin.close()
-            except Exception:
-                pass
 
         # Ensure topics exist with correct configs.
-        try:
+        with contextlib.suppress(Exception):
             await create_topics(broker)
-        except Exception:
-            pass
 
         admin2 = AIOKafkaAdminClient(bootstrap_servers=broker)
         try:
@@ -94,10 +90,8 @@ def health(
             logger.error("health.topics", error=str(exc), status="error")
             ok = False
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 await admin2.close()
-            except Exception:
-                pass
 
         status = "ok" if ok else "error"
         logger.info("health.overall", status=status)
@@ -113,14 +107,14 @@ def publish_sample(
     omit_causation: bool = typer.Option(False, "--omit-causation/--no-omit-causation"),
     non_root: bool = typer.Option(False, "--non-root/--no-non-root"),
     broker: str = typer.Option("localhost:9092"),
-    correlation: Optional[str] = typer.Option(None, help="Correlation UUID (generated if omitted)"),
+    correlation: str | None = typer.Option(None, help="Correlation UUID (generated if omitted)"),
 ) -> None:
     """Publish one agent.sample.v1 event."""
     configure_logging()
 
     async def _run() -> None:
-        from agent_foundation.transport.publisher import Publisher
         from agent_foundation.payloads.sample import SamplePayload
+        from agent_foundation.transport.publisher import Publisher
 
         identity = _default_identity()
         corr_id = UUID(correlation) if correlation else uuid.uuid4()
@@ -130,7 +124,7 @@ def publish_sample(
             payload = SamplePayload(message=message)
         except Exception as exc:
             typer.echo(f"Payload validation failed: {exc}", err=True)
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
         if non_root and omit_causation:
             # Demonstrate missing-causation rejection path: write audit record and exit non-zero.
@@ -165,7 +159,7 @@ def publish_sample(
                 typer.echo(f"Published event_id={envelope.event_id}")
             except Exception as exc:
                 typer.echo(f"Publish failed: {exc}", err=True)
-                raise typer.Exit(1)
+                raise typer.Exit(1) from exc
 
     asyncio.run(_run())
 
@@ -186,6 +180,7 @@ def consume_sample(
 
         async def handler(envelope: EventEnvelope) -> None:
             import json
+
             typer.echo(json.dumps(envelope.model_dump(mode="json"), default=str))
 
         consumer = Consumer(
@@ -219,8 +214,8 @@ def publish_chain(
     configure_logging()
 
     async def _run() -> None:
-        from agent_foundation.transport.publisher import Publisher
         from agent_foundation.payloads.sample import SamplePayload
+        from agent_foundation.transport.publisher import Publisher
 
         identity = _default_identity()
         corr_id = uuid.uuid4()
@@ -252,6 +247,7 @@ def query_audit(
 
     async def _run() -> None:
         import json
+
         from agent_foundation.audit.store import query_by_correlation
 
         corr_id = UUID(correlation)
@@ -283,6 +279,7 @@ def replay(
 
     async def _run() -> None:
         import json
+
         from agent_foundation.transport.consumer import Consumer
 
         identity = _default_identity()
@@ -329,8 +326,8 @@ def query_rejections(
 
     async def _run() -> None:
         import json
+
         from agent_foundation.audit.store import consume_all_audit_records
-        from agent_foundation.transport.topics import TOPIC_AUDIT
 
         records = await consume_all_audit_records(broker)
         for rec in records:

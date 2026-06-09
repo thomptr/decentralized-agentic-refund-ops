@@ -167,11 +167,43 @@ The `-v` flag removes named volumes so a subsequent `up` starts clean.
 
 ```bash
 # Fast: unit + contract (no Kafka required)
-pytest
+uv run pytest tests/unit/ tests/contract/ -v
 
 # Slow: integration tests against testcontainers-managed Kafka
-pytest -m integration
+uv run pytest -m integration -v
 ```
+
+---
+
+## Running CI checks locally
+
+Run the same checks that GitHub Actions enforces before opening a PR:
+
+```bash
+# Lint
+uv run ruff check .
+uv run ruff format --check .
+
+# Type checking
+uv run mypy src/
+
+# Dependency CVE scan
+uv run pip-audit
+
+# Python SAST (medium severity and above, src/ only)
+uv run bandit -r src/ -ll
+```
+
+To auto-fix lint and format issues before committing:
+
+```bash
+uv run ruff check --fix .
+uv run ruff format .
+```
+
+The CI workflow definitions are in `.github/workflows/`:
+- `ci.yml` — required gate (lint, security, unit + contract tests)
+- `integration.yml` — non-blocking integration tests (not in branch protection required checks)
 
 ---
 

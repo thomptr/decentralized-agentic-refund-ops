@@ -175,6 +175,18 @@ description: "Task list for Decentralized Agent Event Foundation"
 
 ---
 
+## Phase 11: GitHub Actions CI/CD (FR-016 – FR-019)
+
+**Purpose**: Automated lint, security, and test gate on every PR and non-main push.
+
+- [X] T047 [P] Update `pyproject.toml` dev extras: add `pip-audit>=2.7` and `bandit>=1.7` to `[project.optional-dependencies] dev`; run `uv sync --extra dev` to verify resolution
+- [X] T048 [P] Create `.github/workflows/ci.yml` from `specs/001-event-foundation/contracts/ci-workflow.yml`: three jobs — `Lint & Type Check` (ruff check, ruff format --check, mypy), `Security Scan` (pip-audit, bandit -r src/ -ll), `Unit & Contract Tests` (pytest tests/unit/ tests/contract/ -v); triggers on PRs to main and pushes to non-main branches; Python 3.12 via `.python-version` file; `astral-sh/setup-uv@v4` with `enable-cache: true`
+- [X] T049 [P] Create `.github/workflows/integration.yml` from `specs/001-event-foundation/contracts/integration-workflow.yml`: one job — `Integration Tests` (pytest -m integration -v); same triggers; excluded from required-status-checks (non-blocking)
+
+**Checkpoint**: `uv sync --extra dev` resolves pip-audit and bandit; workflow YAML files are valid and match the contracts in `specs/001-event-foundation/contracts/`; `uv run pip-audit` and `uv run bandit -r src/ -ll` exit 0 locally
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
