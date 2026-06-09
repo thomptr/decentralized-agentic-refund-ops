@@ -12,6 +12,14 @@ EVENT_DUPLICATE_SKIPPED = "event.duplicate_skipped"
 EVENT_PUBLISH_FAILED = "event.publish_failed"
 CONSUMER_ERROR = "consumer.error"
 
+TASK_CARD_PUBLISHED = "agent-card.published"
+TASK_ENDPOINT_SERVING = "endpoint.serving"
+TASK_ACCEPTED = "task.accepted"
+TASK_REJECTED = "task.rejected"
+TASK_COMPLETED = "task.completed"
+TASK_FAILED = "task.failed"
+TASK_DUPLICATE_SKIPPED = "task.duplicate-skipped"
+
 
 def configure_logging(level: int = logging.INFO) -> None:
     """Configure structlog for JSON output to stdout."""

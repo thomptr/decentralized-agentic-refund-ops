@@ -55,6 +55,61 @@ async def write_audit(
         _log.warning("audit.write_failed", error=str(exc), event_id=str(envelope.event_id))
 
 
+async def write_task_audit(
+    publisher: Publisher,
+    envelope: EventEnvelope,
+    outcome: str,
+    task_id: UUID | None,
+    reason: str | None = None,
+) -> None:
+    """Publish a task-lifecycle AuditPayload for a TaskRequest/TaskResult envelope."""
+    from datetime import UTC
+    from uuid import uuid4
+
+    from agent_foundation.envelope import EventEnvelope as EE
+    from agent_foundation.transport.topics import TOPIC_AUDIT
+
+    recorded_at = datetime.now(UTC)
+    audit_payload = AuditPayload(
+        original_envelope=envelope,
+        outcome=outcome,  # type: ignore[arg-type]
+        reason=reason,
+        recorded_at=recorded_at,
+        task_id=task_id,
+    )
+
+    audit_envelope = EE(
+        event_id=uuid4(),
+        correlation_id=envelope.correlation_id,
+        causation_id=envelope.event_id,
+        agent_id=publisher._identity.agent_id,
+        tenant_id=publisher._identity.tenant_id,
+        timestamp=recorded_at,
+        event_type="agent.audit.v1",
+        schema_version="1.0.0",
+        payload=audit_payload.model_dump(mode="json"),
+    )
+    try:
+        await publisher.publish_raw(audit_envelope, TOPIC_AUDIT)
+    except Exception as exc:
+        _log.warning(
+            "task_audit.write_failed",
+            error=str(exc),
+            event_id=str(envelope.event_id),
+            task_id=str(task_id) if task_id else None,
+            outcome=outcome,
+        )
+
+
+async def query_by_task_id(
+    bootstrap_servers: str,
+    task_id: UUID,
+) -> list[AuditPayload]:
+    """Return all AuditPayload records for a task_id, ordered by Kafka offset."""
+    records = await consume_all_audit_records(bootstrap_servers)
+    return [r for r in records if r.task_id == task_id]
+
+
 async def query_by_correlation(
     bootstrap_servers: str,
     correlation_id: UUID,
@@ -87,18 +142,25 @@ async def consume_all_audit_records(bootstrap_servers: str) -> list[AuditPayload
         group_id=None,
         auto_offset_reset="earliest",
         enable_auto_commit=False,
-        consumer_timeout_ms=3000,
     )
     await consumer.start()
     results: list[AuditPayload] = []
     try:
-        async for msg in consumer:
-            try:
-                raw_envelope = EE.model_validate_json(msg.value)
-                audit = AuditPayload.model_validate(raw_envelope.payload)
-                results.append(audit)
-            except Exception:
-                pass
+        # aiokafka's `async for` iterator blocks indefinitely on idle (it ignores
+        # consumer_timeout_ms), so drain explicitly with getmany(): each poll returns
+        # whatever is currently available, and an empty poll means we've caught up.
+        while True:
+            batch = await consumer.getmany(timeout_ms=3000)
+            if not batch:
+                break
+            for _tp, msgs in batch.items():
+                for msg in msgs:
+                    try:
+                        raw_envelope = EE.model_validate_json(msg.value)
+                        audit = AuditPayload.model_validate(raw_envelope.payload)
+                        results.append(audit)
+                    except Exception:
+                        pass
     except Exception:
         pass
     finally:

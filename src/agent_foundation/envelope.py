@@ -16,6 +16,7 @@ def _build_root_event_types() -> frozenset[str]:
         {
             "agent.sample.v1",
             "agent.workflow_start.v1",
+            "agent.agent_card.v1",
             f"{env}.support.ticket.created.v1",
         }
     )

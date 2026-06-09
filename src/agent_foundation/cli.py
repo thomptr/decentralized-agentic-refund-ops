@@ -345,5 +345,75 @@ def query_rejections(
     asyncio.run(_run())
 
 
+@app.command(name="query-task-audit")
+def query_task_audit(
+    task_id: str = typer.Option(..., "--task-id", help="Task UUID"),
+    broker: str = typer.Option("localhost:9092"),
+) -> None:
+    """Print a task's full lifecycle from the audit topic, ordered by Kafka offset."""
+    configure_logging()
+
+    async def _run() -> None:
+        import json
+
+        from agent_foundation.audit.store import query_by_task_id
+
+        tid = UUID(task_id)
+        records = await query_by_task_id(broker, tid)
+        if not records:
+            typer.echo(f"No audit records found for task_id={task_id}", err=True)
+            raise typer.Exit(1)
+        for rec in records:
+            typer.echo(
+                json.dumps(
+                    {
+                        "event_id": str(rec.original_envelope.event_id),
+                        "agent_id": rec.original_envelope.agent_id,
+                        "outcome": rec.outcome,
+                        "task_id": str(rec.task_id) if rec.task_id else None,
+                        "reason": rec.reason,
+                        "recorded_at": rec.recorded_at.isoformat(),
+                    }
+                )
+            )
+
+    asyncio.run(_run())
+
+
+@app.command(name="discover")
+def discover(
+    capability: str | None = typer.Option(None, "--capability", help="Filter by capability id"),
+    broker: str = typer.Option("localhost:9092"),
+) -> None:
+    """List discovered agents (optionally filtered by capability) from the card topic."""
+    configure_logging()
+
+    async def _run() -> None:
+        import json
+
+        from agent_foundation.runtime.discovery import discover_agents, find_capable
+
+        cards = (
+            await find_capable(capability, broker) if capability else await discover_agents(broker)
+        )
+        if not cards:
+            typer.echo("No agent cards found.")
+            return
+        for card in sorted(cards, key=lambda c: c.agent_id):
+            typer.echo(
+                json.dumps(
+                    {
+                        "agent_id": card.agent_id,
+                        "name": card.name,
+                        "version": card.version,
+                        "capabilities": [c.id for c in card.capabilities],
+                        "security": card.security,
+                    }
+                )
+            )
+
+    asyncio.run(_run())
+
+
 if __name__ == "__main__":
     app()

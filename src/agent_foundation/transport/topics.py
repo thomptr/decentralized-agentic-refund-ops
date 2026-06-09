@@ -3,14 +3,25 @@ from __future__ import annotations
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic  # type: ignore[import-untyped]
 
 from packages.contracts.topics import (
+    TOPIC_AGENT_CARD,
     TOPIC_AUDIT,
     TOPIC_MESSAGE,
     TOPIC_SAMPLE,
+    TOPIC_TASK_RESULT,
+    endpoint_topic,
     processed_id_topic,
     topic_for,
 )
 
-__all__ = ["TOPIC_AUDIT", "TOPIC_MESSAGE", "TOPIC_SAMPLE", "processed_id_topic"]
+__all__ = [
+    "TOPIC_AUDIT",
+    "TOPIC_MESSAGE",
+    "TOPIC_SAMPLE",
+    "TOPIC_AGENT_CARD",
+    "TOPIC_TASK_RESULT",
+    "endpoint_topic",
+    "processed_id_topic",
+]
 
 _TICKET_CREATED = topic_for("support", "ticket", "created")
 
@@ -44,6 +55,18 @@ _CANONICAL_TOPICS: list[NewTopic] = [
         replication_factor=1,
         topic_configs={"retention.ms": str(_ONE_DAY_MS)},
     ),
+    NewTopic(
+        name=TOPIC_AGENT_CARD,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"cleanup.policy": "compact"},
+    ),
+    NewTopic(
+        name=TOPIC_TASK_RESULT,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},
+    ),
 ]
 
 
@@ -71,4 +94,13 @@ def processed_id_new_topic(consumer_name: str) -> NewTopic:
         num_partitions=1,
         replication_factor=1,
         topic_configs={"cleanup.policy": "compact"},
+    )
+
+
+def endpoint_topic_new_topic(agent_id: str) -> NewTopic:
+    return NewTopic(
+        name=endpoint_topic(agent_id),
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},
     )

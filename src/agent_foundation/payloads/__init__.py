@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from pydantic import BaseModel
 
 from agent_foundation.a2a import A2AMessage
 from agent_foundation.payloads.sample import AuditPayload, SamplePayload
 from agent_foundation.payloads.support_ticket import SupportTicketCreatedPayload
+from agent_foundation.payloads.task import TaskRequest, TaskResult
+from agent_foundation.runtime.agent_card import AgentCard
 from packages.contracts.topics import topic_for
-
-if TYPE_CHECKING:
-    pass
 
 _TICKET_CREATED_ET = topic_for("support", "ticket", "created")
 
@@ -18,6 +15,9 @@ PAYLOAD_REGISTRY: dict[str, type[BaseModel]] = {
     "agent.message.v1": A2AMessage,
     "agent.audit.v1": AuditPayload,
     "agent.sample.v1": SamplePayload,
+    "agent.task_request.v1": TaskRequest,
+    "agent.task_result.v1": TaskResult,
+    "agent.agent_card.v1": AgentCard,
     # Dev/demo domain event; included so Publisher can validate and send it.
     _TICKET_CREATED_ET: SupportTicketCreatedPayload,
 }

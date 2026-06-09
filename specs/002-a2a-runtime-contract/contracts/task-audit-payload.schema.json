@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://decentralized-agentic-refund-ops/specs/002-a2a-runtime-contract/task-audit-payload.schema.json",
+  "title": "AuditPayload (task-lifecycle extension)",
+  "description": "Extension of the 001-event-foundation AuditPayload to carry task-lifecycle audit. Published to the existing audit topic (local.audit.envelope.recorded.v1) under event_type agent.audit.v1. Backward compatible: task_id is optional and the prior outcomes are retained. This schema supersedes 001's audit-payload.schema.json for the audit topic.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["original_envelope", "outcome", "recorded_at"],
+  "properties": {
+    "original_envelope": {
+      "$ref": "https://decentralized-agentic-refund-ops/specs/001-event-foundation/event-envelope.schema.json"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["accepted", "rejected", "duplicate_skipped", "completed", "failed"],
+      "description": "Envelope-level outcomes (accepted/rejected/duplicate_skipped) and task-lifecycle outcomes (accepted/completed/failed/rejected)."
+    },
+    "reason": {
+      "type": ["string", "null"],
+      "description": "Required when outcome is 'rejected' or 'failed'."
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "task_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Set for task-lifecycle audit records; null for envelope-level audit. Query a task's full lifecycle by filtering audit records on this field."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "rejected" } } },
+      "then": { "required": ["reason"] }
+    },
+    {
+      "if": { "properties": { "outcome": { "const": "failed" } } },
+      "then": { "required": ["reason"] }
+    },
+    {
+      "comment": "completed/failed are task-only outcomes and therefore always carry task_id. accepted/rejected are shared with envelope-level audit (foundation), where task_id is null, so they are not constrained here.",
+      "if": { "properties": { "outcome": { "enum": ["completed", "failed"] } } },
+      "then": {
+        "required": ["task_id"],
+        "not": { "properties": { "task_id": { "type": "null" } } }
+      }
+    }
+  ]
+}
