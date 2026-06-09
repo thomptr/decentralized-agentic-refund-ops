@@ -38,6 +38,14 @@ TOPIC_SAMPLE: str = topic_for("system", "sample", "published")
 TOPIC_AGENT_CARD: str = topic_for("agent", "agent-card", "published")
 TOPIC_TASK_RESULT: str = topic_for("agent", "task", "result")
 
+# Feature 003: Customer Resolution Agent topics
+TOPIC_RESOLUTION_DECIDED: str = topic_for("customer", "resolution", "decided")
+TOPIC_ISSUE_CLASSIFIED: str = topic_for("resolution", "customer-issue", "classified")
+TOPIC_REFUND_REVIEW_REQUESTED: str = topic_for("resolution", "refund-review", "requested")
+TOPIC_BILLING_RESULT: str = topic_for("billing", "refund-analysis", "completed")
+TOPIC_RISK_RESULT: str = topic_for("risk", "review", "completed")
+TOPIC_RESPONSE_DRAFTED: str = topic_for("resolution", "customer-response", "drafted")
+
 
 def endpoint_topic(agent_id: str) -> str:
     return topic_for("agent", agent_id, "task.requested")

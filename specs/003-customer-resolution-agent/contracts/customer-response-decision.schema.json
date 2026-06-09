@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://refundops.local/contracts/customer-response-decision.schema.json",
+  "title": "CustomerResponseDecisionPayload",
+  "description": "The single final customer response decision emitted by the Customer Resolution Agent for one ticket. Event type: local.customer.resolution.decided.v1. Exactly one per resolved ticket (FR-007).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ticket_id",
+    "correlation_id",
+    "outcome",
+    "customer_response",
+    "rationale",
+    "decided_by_agent_id",
+    "decided_at"
+  ],
+  "properties": {
+    "ticket_id": {
+      "type": "string",
+      "description": "Business ticket identity (e.g. TKT-001)."
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Case identity; equals the originating ticket envelope's correlation_id."
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["approve_refund", "deny_refund", "escalate_human", "direct_response"],
+      "description": "approve/deny/escalate for refund-review tickets; direct_response for non-refund tickets."
+    },
+    "customer_response": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The drafted customer-facing message for this outcome."
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Auditable explanation of how the outcome was reached from triage + findings."
+    },
+    "escalation_reason": {
+      "type": ["string", "null"],
+      "description": "Required (non-null) iff outcome == escalate_human; null otherwise (FR-010). One of: peer_failure, peer_rejection, elevated_risk, conflicting_analyses, peer_requested_review."
+    },
+    "billing_summary": {
+      "type": ["string", "null"],
+      "description": "Traceability to the billing analysis result that informed the decision (US5-2). Null for direct_response."
+    },
+    "risk_summary": {
+      "type": ["string", "null"],
+      "description": "Traceability to the risk analysis result that informed the decision (US5-2). Null for direct_response."
+    },
+    "decided_by_agent_id": {
+      "type": "string",
+      "const": "customer-resolution-agent",
+      "description": "Always the resolution agent; it owns the decision."
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "outcome": { "const": "escalate_human" } }
+      },
+      "then": {
+        "properties": { "escalation_reason": { "type": "string", "minLength": 1 } },
+        "required": ["escalation_reason"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "outcome": { "const": "direct_response" } }
+      },
+      "then": {
+        "properties": {
+          "billing_summary": { "const": null },
+          "risk_summary": { "const": null },
+          "escalation_reason": { "const": null }
+        }
+      }
+    }
+  ]
+}

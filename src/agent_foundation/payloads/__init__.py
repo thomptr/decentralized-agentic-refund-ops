@@ -7,7 +7,23 @@ from agent_foundation.payloads.sample import AuditPayload, SamplePayload
 from agent_foundation.payloads.support_ticket import SupportTicketCreatedPayload
 from agent_foundation.payloads.task import TaskRequest, TaskResult
 from agent_foundation.runtime.agent_card import AgentCard
-from packages.contracts.topics import topic_for
+from packages.contracts.events.payloads import (
+    BillingRefundAnalysisCompletedPayload,
+    CustomerIssueClassifiedPayload,
+    CustomerResponseDecisionPayload,
+    CustomerResponseDraftedPayload,
+    RefundReviewRequestedPayload,
+    RiskReviewCompletedPayload,
+)
+from packages.contracts.topics import (
+    TOPIC_BILLING_RESULT,
+    TOPIC_ISSUE_CLASSIFIED,
+    TOPIC_REFUND_REVIEW_REQUESTED,
+    TOPIC_RESOLUTION_DECIDED,
+    TOPIC_RESPONSE_DRAFTED,
+    TOPIC_RISK_RESULT,
+    topic_for,
+)
 
 _TICKET_CREATED_ET = topic_for("support", "ticket", "created")
 
@@ -20,6 +36,13 @@ PAYLOAD_REGISTRY: dict[str, type[BaseModel]] = {
     "agent.agent_card.v1": AgentCard,
     # Dev/demo domain event; included so Publisher can validate and send it.
     _TICKET_CREATED_ET: SupportTicketCreatedPayload,
+    # Feature 003: Customer Resolution Agent events
+    TOPIC_RESOLUTION_DECIDED: CustomerResponseDecisionPayload,
+    TOPIC_ISSUE_CLASSIFIED: CustomerIssueClassifiedPayload,
+    TOPIC_REFUND_REVIEW_REQUESTED: RefundReviewRequestedPayload,
+    TOPIC_BILLING_RESULT: BillingRefundAnalysisCompletedPayload,
+    TOPIC_RISK_RESULT: RiskReviewCompletedPayload,
+    TOPIC_RESPONSE_DRAFTED: CustomerResponseDraftedPayload,
 }
 
 

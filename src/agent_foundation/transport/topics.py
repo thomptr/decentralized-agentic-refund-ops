@@ -5,7 +5,13 @@ from aiokafka.admin import AIOKafkaAdminClient, NewTopic  # type: ignore[import-
 from packages.contracts.topics import (
     TOPIC_AGENT_CARD,
     TOPIC_AUDIT,
+    TOPIC_BILLING_RESULT,
+    TOPIC_ISSUE_CLASSIFIED,
     TOPIC_MESSAGE,
+    TOPIC_REFUND_REVIEW_REQUESTED,
+    TOPIC_RESOLUTION_DECIDED,
+    TOPIC_RESPONSE_DRAFTED,
+    TOPIC_RISK_RESULT,
     TOPIC_SAMPLE,
     TOPIC_TASK_RESULT,
     endpoint_topic,
@@ -31,6 +37,13 @@ TOPIC_NAMES: dict[str, str] = {
     "agent.sample.v1": TOPIC_SAMPLE,
     # New-style event types: topic name == event type (environment-prefixed convention).
     _TICKET_CREATED: _TICKET_CREATED,
+    # Feature 003: Customer Resolution Agent topics
+    TOPIC_RESOLUTION_DECIDED: TOPIC_RESOLUTION_DECIDED,
+    TOPIC_ISSUE_CLASSIFIED: TOPIC_ISSUE_CLASSIFIED,
+    TOPIC_REFUND_REVIEW_REQUESTED: TOPIC_REFUND_REVIEW_REQUESTED,
+    TOPIC_BILLING_RESULT: TOPIC_BILLING_RESULT,
+    TOPIC_RISK_RESULT: TOPIC_RISK_RESULT,
+    TOPIC_RESPONSE_DRAFTED: TOPIC_RESPONSE_DRAFTED,
 }
 
 _ONE_DAY_MS = 86_400_000
@@ -63,6 +76,43 @@ _CANONICAL_TOPICS: list[NewTopic] = [
     ),
     NewTopic(
         name=TOPIC_TASK_RESULT,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},
+    ),
+    # Feature 003: Customer Resolution Agent topics
+    NewTopic(
+        name=TOPIC_RESOLUTION_DECIDED,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},
+    ),
+    NewTopic(
+        name=TOPIC_ISSUE_CLASSIFIED,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},
+    ),
+    NewTopic(
+        name=TOPIC_REFUND_REVIEW_REQUESTED,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},
+    ),
+    NewTopic(
+        name=TOPIC_BILLING_RESULT,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},
+    ),
+    NewTopic(
+        name=TOPIC_RISK_RESULT,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},
+    ),
+    NewTopic(
+        name=TOPIC_RESPONSE_DRAFTED,
         num_partitions=1,
         replication_factor=1,
         topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},

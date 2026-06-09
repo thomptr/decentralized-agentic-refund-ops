@@ -1,90 +1,38 @@
-"""Customer Resolution demo agent — mock handler only, no domain business logic.
+"""Customer Resolution Agent entrypoint.
 
-Capability: resolve_customer_case
-  - Delegates analyze_refund_eligibility to billing-entitlement-agent via A2AClient (US3).
-  - Returns a fixed mock resolution summary combining the billing verdict.
+Three concurrent loops (intake, result, runtime) share an in-process CaseStateStore.
+No billing/risk business logic is implemented here — all such facts enter via peer TaskResult.
+
+Usage:
+    demo-customer-resolution           # via installed console script
+    uv run python -m apps.agents.customer_resolution.main
 """
 
 from __future__ import annotations
 
 
+def run() -> None:
+    """Entry point registered in pyproject.toml as demo-customer-resolution."""
+    main()
+
+
 def main() -> None:
-    from agent_foundation.a2a import A2AMessage, A2APart
-    from agent_foundation.envelope import AgentIdentity
-    from agent_foundation.payloads.task import TaskRequest
-    from agent_foundation.runtime import A2AClient, AgentCard, AgentRuntime, Capability
-    from apps.agents.common import BROKER_URL, run_agent
-    from packages.contracts.topics import endpoint_topic
+    import asyncio
+    import signal
 
-    agent_id = "customer-resolution-agent"
-    identity = AgentIdentity(
-        agent_id=agent_id,
-        display_name="Customer Resolution Agent",
-        tenant_id="poc",
-    )
-    card = AgentCard(
-        agent_id=agent_id,
-        name="Customer Resolution Agent",
-        description="Resolves customer cases by coordinating with billing and risk agents (mock).",
-        version="1.0.0",
-        endpoint_topic=endpoint_topic(agent_id),
-        capabilities=[
-            Capability(
-                id="resolve_customer_case",
-                name="Resolve Customer Case",
-                description="Resolves a customer case by checking refund eligibility (mock).",
-                tags=["resolution", "demo"],
-            )
-        ],
-        security="none",
-    )
-    runtime = AgentRuntime(identity, card, broker_url=BROKER_URL)
-    client = A2AClient(identity, broker_url=BROKER_URL)
+    from apps.agents.common import BROKER_URL
+    from apps.agents.customer_resolution.agent import ResolutionService
 
-    @runtime.handler("resolve_customer_case")
-    async def handle_resolve(req: TaskRequest) -> A2AMessage:
-        # Delegate to billing-entitlement-agent via A2AClient (no direct call, FR-011)
-        billing_input = A2AMessage(
-            role="user",
-            parts=[
-                A2APart(
-                    type="data",
-                    data={"case_id": str(req.task_id), "source": "customer-resolution"},
-                )
-            ],
-        )
-        try:
-            billing_result = await client.submit(
-                "billing-entitlement-agent",
-                "analyze_refund_eligibility",
-                billing_input,
-                correlation_id=req.input.task_id or None,
-                causation_id=None,
-                timeout_s=15.0,
-            )
-            billing_data = (
-                billing_result.output.parts[0].data
-                if billing_result.output and billing_result.output.parts
-                else {"eligible": "unknown"}
-            )
-        except TimeoutError:
-            billing_data = {"eligible": "unknown", "reason": "billing-timeout"}
+    service = ResolutionService(broker_url=BROKER_URL)
+    stop_event = asyncio.Event()
 
-        return A2AMessage(
-            role="agent",
-            parts=[
-                A2APart(
-                    type="data",
-                    data={
-                        "resolution": "mock-resolved",
-                        "case_id": str(req.task_id),
-                        "billing_verdict": billing_data,
-                    },
-                )
-            ],
-        )
+    def _handle_signal(sig, frame) -> None:
+        stop_event.set()
 
-    run_agent(runtime)
+    signal.signal(signal.SIGINT, _handle_signal)
+    signal.signal(signal.SIGTERM, _handle_signal)
+
+    asyncio.run(service.serve(stop_event))
 
 
 if __name__ == "__main__":
