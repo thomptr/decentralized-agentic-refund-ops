@@ -47,7 +47,7 @@ async def publish_card(card: AgentCard, broker_url: str = "localhost:9092") -> N
 
 async def discover_agents(broker_url: str = "localhost:9092") -> list[AgentCard]:
     """Read the compacted TOPIC_AGENT_CARD from earliest; return latest card per agent_id."""
-    from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped]
+    from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped,unused-ignore]
 
     from agent_foundation.envelope import EventEnvelope
     from agent_foundation.transport.topics import TOPIC_AGENT_CARD
