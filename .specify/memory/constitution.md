@@ -29,7 +29,11 @@ Deferred TODOs: None
 Each agent MUST have a single, clearly scoped responsibility and MUST operate independently without
 requiring synchronous calls to other agents. Agents communicate only through events; direct coupling
 between agents is prohibited. A new agent MUST NOT be introduced unless its responsibility cannot
-be fulfilled by an existing agent.
+be fulfilled by an existing agent.  This project demonstrates decentralized multi-agent collaboration. 
+There must be no supervisor agent, no central router, and no hidden orchestrator. Agents coordinate 
+through A2A task delegation and Kafka structured events. All agent actions must be auditable, replayable, 
+typed with Pydantic schemas, idempotent where possible, and testable locally before AWS deployment. 
+Domain ownership must be strict: customer resolution, billing, and risk logic must remain isolated in separate agents.
 
 ### II. Event-Driven Coordination
 
