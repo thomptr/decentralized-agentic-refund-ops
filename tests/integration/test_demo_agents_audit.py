@@ -2,6 +2,7 @@
 
 Tests T032 (audit queryable by task_id and correlation_id, FR-008/FR-012).
 """
+
 from __future__ import annotations
 
 import asyncio

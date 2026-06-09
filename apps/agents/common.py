@@ -1,4 +1,5 @@
 """Shared bootstrap for demo agents."""
+
 from __future__ import annotations
 
 import asyncio

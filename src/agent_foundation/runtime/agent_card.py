@@ -55,18 +55,14 @@ class AgentCard(BaseModel):
     @classmethod
     def validate_agent_id(cls, v: str) -> str:
         if not _AGENT_ID_RE.match(v):
-            raise ValueError(
-                f"AgentCard.agent_id must match {_AGENT_ID_RE.pattern!r}, got {v!r}"
-            )
+            raise ValueError(f"AgentCard.agent_id must match {_AGENT_ID_RE.pattern!r}, got {v!r}")
         return v
 
     @field_validator("version")
     @classmethod
     def validate_version(cls, v: str) -> str:
         if not _SEMVER_RE.match(v):
-            raise ValueError(
-                f"AgentCard.version must be semver MAJOR.MINOR.PATCH, got {v!r}"
-            )
+            raise ValueError(f"AgentCard.version must be semver MAJOR.MINOR.PATCH, got {v!r}")
         return v
 
     @model_validator(mode="after")

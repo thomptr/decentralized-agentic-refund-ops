@@ -2,6 +2,7 @@
 
 Tests T030 (acceptance criteria 2 & 4).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -66,10 +67,7 @@ async def test_discover_agents_returns_three_cards(kafka_bootstrap_servers: str)
 
         runtimes.append((rt, stop))
 
-    tasks = [
-        asyncio.create_task(rt.serve(stop))
-        for rt, stop in runtimes
-    ]
+    tasks = [asyncio.create_task(rt.serve(stop)) for rt, stop in runtimes]
     await asyncio.sleep(5.0)
 
     # Discover agents from compacted topic — no central registry
@@ -104,9 +102,7 @@ async def test_a2a_delegation_billing_to_customer(kafka_bootstrap_servers: str) 
     customer_id = f"customer.{suffix}"
 
     # Billing agent
-    billing_identity = AgentIdentity(
-        agent_id=billing_id, display_name="Billing", tenant_id="poc"
-    )
+    billing_identity = AgentIdentity(agent_id=billing_id, display_name="Billing", tenant_id="poc")
     billing_card = AgentCard(
         agent_id=billing_id,
         name="Billing",

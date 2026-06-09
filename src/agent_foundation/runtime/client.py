@@ -1,4 +1,5 @@
 """A2AClient: submit tasks to peer agents over Kafka (no router)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -91,13 +92,9 @@ class A2AClient:
             while True:
                 remaining = deadline - loop.time()
                 if remaining <= 0:
-                    raise TimeoutError(
-                        f"No result for task_id={task_id} within {timeout_s}s"
-                    )
+                    raise TimeoutError(f"No result for task_id={task_id} within {timeout_s}s")
                 try:
-                    msg = await asyncio.wait_for(
-                        consumer.getone(), timeout=min(remaining, 1.0)
-                    )
+                    msg = await asyncio.wait_for(consumer.getone(), timeout=min(remaining, 1.0))
                 except TimeoutError:
                     if loop.time() >= deadline:
                         raise TimeoutError(

@@ -2,6 +2,7 @@
 
 Tests T024 (acceptance criteria 1 & 3).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -76,9 +77,7 @@ async def test_three_agents_start_independently(kafka_bootstrap_servers: str) ->
     ]
 
     tasks = [
-        asyncio.create_task(
-            _run_agent_briefly(aid, cap, kafka_bootstrap_servers, stop_events[i])
-        )
+        asyncio.create_task(_run_agent_briefly(aid, cap, kafka_bootstrap_servers, stop_events[i]))
         for i, (aid, cap) in enumerate(agents)
     ]
 

@@ -3,6 +3,7 @@
 Cases 4–10: server-side reject/accept/idempotency, client timeout, audit events.
 Requires a live Kafka broker via testcontainers.
 """
+
 from __future__ import annotations
 
 import asyncio

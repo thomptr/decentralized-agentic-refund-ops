@@ -2,6 +2,7 @@
 
 Verifies FR-009: exactly one of {rejected} or {accepted + one terminal} per task_id.
 """
+
 from __future__ import annotations
 
 from uuid import UUID, uuid4

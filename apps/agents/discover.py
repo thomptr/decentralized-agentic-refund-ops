@@ -1,4 +1,5 @@
 """Discovery helper — list all published Agent Cards with no central registry."""
+
 from __future__ import annotations
 
 import asyncio

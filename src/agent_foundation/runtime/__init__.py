@@ -1,4 +1,5 @@
 """A2A runtime contract — expose endpoints, delegate tasks, discover peers."""
+
 from __future__ import annotations
 
 from agent_foundation.runtime.agent_card import AgentCard, Capability

@@ -3,6 +3,7 @@
 Tests T033: confirms the demo wiring contains no dispatcher/router/orchestrator
 and cross-agent traffic addresses endpoint topics directly (FR-011, SC-008).
 """
+
 from __future__ import annotations
 
 import ast
@@ -49,9 +50,9 @@ def test_no_router_import_in_agent_files() -> None:
                     ), f"{path.name}: imports forbidden name {alias.name!r}"
             elif isinstance(node, ast.ImportFrom):
                 module = (node.module or "").lower()
-                assert not any(
-                    forbidden in module for forbidden in FORBIDDEN_NAMES
-                ), f"{path.name}: from-imports forbidden module {node.module!r}"
+                assert not any(forbidden in module for forbidden in FORBIDDEN_NAMES), (
+                    f"{path.name}: from-imports forbidden module {node.module!r}"
+                )
 
 
 def test_no_router_defined_in_agent_files() -> None:
@@ -67,9 +68,9 @@ def test_no_router_defined_in_agent_files() -> None:
         for node in ast.walk(tree):
             if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
                 name_lower = node.name.lower()
-                assert not any(
-                    forbidden in name_lower for forbidden in FORBIDDEN_NAMES
-                ), f"{path.name}: defines forbidden symbol {node.name!r}"
+                assert not any(forbidden in name_lower for forbidden in FORBIDDEN_NAMES), (
+                    f"{path.name}: defines forbidden symbol {node.name!r}"
+                )
 
 
 def test_customer_resolution_delegates_directly_to_billing() -> None:

@@ -3,6 +3,7 @@
 Cases 1, 2, and 10 (card validates, card returns expected metadata, card has auth metadata).
 No broker required.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -25,9 +26,7 @@ def make_agent_card(
         description="An agent for contract tests",
         version="1.0.0",
         endpoint_topic=endpoint_topic(agent_id),
-        capabilities=[
-            Capability(id=cap_id, name="Do Something", description="A capability")
-        ],
+        capabilities=[Capability(id=cap_id, name="Do Something", description="A capability")],
         **kwargs,  # type: ignore[arg-type]
     )
 

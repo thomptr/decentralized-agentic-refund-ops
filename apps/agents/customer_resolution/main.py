@@ -4,6 +4,7 @@ Capability: resolve_customer_case
   - Delegates analyze_refund_eligibility to billing-entitlement-agent via A2AClient (US3).
   - Returns a fixed mock resolution summary combining the billing verdict.
 """
+
 from __future__ import annotations
 
 
@@ -45,10 +46,12 @@ def main() -> None:
         # Delegate to billing-entitlement-agent via A2AClient (no direct call, FR-011)
         billing_input = A2AMessage(
             role="user",
-            parts=[A2APart(
-                type="data",
-                data={"case_id": str(req.task_id), "source": "customer-resolution"},
-            )],
+            parts=[
+                A2APart(
+                    type="data",
+                    data={"case_id": str(req.task_id), "source": "customer-resolution"},
+                )
+            ],
         )
         try:
             billing_result = await client.submit(

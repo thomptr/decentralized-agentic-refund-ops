@@ -5,6 +5,7 @@ Capability: analyze_refund_eligibility
   - Failure sentinel: when input text part equals "FAIL", the handler raises so the
     runtime produces TaskResult(status="failed", error.category="handler_error").
 """
+
 from __future__ import annotations
 
 

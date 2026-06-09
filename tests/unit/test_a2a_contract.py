@@ -6,6 +6,7 @@ once T044 is implemented.
 
 No broker required.
 """
+
 from __future__ import annotations
 
 import pytest

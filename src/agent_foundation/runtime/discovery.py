@@ -1,4 +1,5 @@
 """Agent Card discovery over the compacted Kafka discovery topic. No central registry."""
+
 from __future__ import annotations
 
 from agent_foundation.logging import get_logger

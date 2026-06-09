@@ -3,6 +3,7 @@
 Capability: assess_fraud_risk
   - Returns a fixed mock risk score.
 """
+
 from __future__ import annotations
 
 

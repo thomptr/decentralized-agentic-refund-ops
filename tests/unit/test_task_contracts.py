@@ -1,4 +1,5 @@
 """Unit tests for TaskRequest, TaskResult, TaskError, Capability, AgentCard (T018)."""
+
 from __future__ import annotations
 
 from uuid import uuid4

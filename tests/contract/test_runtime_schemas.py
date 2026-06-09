@@ -1,4 +1,5 @@
 """Contract tests: JSON-schema round-trips for the new A2A runtime payloads (T020)."""
+
 from __future__ import annotations
 
 import json

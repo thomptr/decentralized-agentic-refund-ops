@@ -394,9 +394,7 @@ def discover(
         from agent_foundation.runtime.discovery import discover_agents, find_capable
 
         cards = (
-            await find_capable(capability, broker)
-            if capability
-            else await discover_agents(broker)
+            await find_capable(capability, broker) if capability else await discover_agents(broker)
         )
         if not cards:
             typer.echo("No agent cards found.")

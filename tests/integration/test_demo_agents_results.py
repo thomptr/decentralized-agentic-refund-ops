@@ -2,6 +2,7 @@
 
 Tests T027 (acceptance: completed/failed lifecycle, exactly one terminal per accepted task_id).
 """
+
 from __future__ import annotations
 
 import asyncio

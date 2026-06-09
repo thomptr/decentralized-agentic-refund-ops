@@ -1,4 +1,5 @@
 """AgentRuntime: expose an A2A endpoint, serve tasks, and audit the lifecycle."""
+
 from __future__ import annotations
 
 import asyncio
@@ -109,9 +110,7 @@ class AgentRuntime:
             )
             await self._publish_card(publisher)
 
-            tracker = IdempotencyTracker(
-                f"{self._identity.agent_id}.tasks", self._broker_url
-            )
+            tracker = IdempotencyTracker(f"{self._identity.agent_id}.tasks", self._broker_url)
             await tracker.initialize()
 
             _log.info(
@@ -182,9 +181,7 @@ class AgentRuntime:
                 error=TaskError(category="validation", message=str(exc)[:500]),
             )
             await self._publish_result(publisher, result, envelope)
-            await write_task_audit(
-                publisher, envelope, "rejected", None, reason=str(exc)[:500]
-            )
+            await write_task_audit(publisher, envelope, "rejected", None, reason=str(exc)[:500])
             return
 
         task_id = req.task_id
@@ -205,15 +202,12 @@ class AgentRuntime:
                 error=TaskError(
                     category="validation",
                     message=(
-                        f"This agent is {self._identity.agent_id!r}, "
-                        f"not {req.target_agent_id!r}"
+                        f"This agent is {self._identity.agent_id!r}, not {req.target_agent_id!r}"
                     ),
                 ),
             )
             await self._publish_result(publisher, result, envelope)
-            await write_task_audit(
-                publisher, envelope, "rejected", task_id, reason="wrong_target"
-            )
+            await write_task_audit(publisher, envelope, "rejected", task_id, reason="wrong_target")
             return
 
         # Validate capability
@@ -280,9 +274,7 @@ class AgentRuntime:
                 ),
             )
             await self._publish_result(publisher, result, envelope)
-            await write_task_audit(
-                publisher, envelope, "failed", task_id, reason="no_handler"
-            )
+            await write_task_audit(publisher, envelope, "failed", task_id, reason="no_handler")
             return
 
         try:
@@ -307,17 +299,14 @@ class AgentRuntime:
                 task_id=task_id,
                 status="failed",
                 performer_agent_id=self._identity.agent_id,
-                error=TaskError(
-                    category="handler_error", message=str(exc)[:500]
-                ),
+                error=TaskError(category="handler_error", message=str(exc)[:500]),
             )
             await self._publish_result(publisher, result, envelope)
-            await write_task_audit(
-                publisher, envelope, "failed", task_id, reason=str(exc)[:500]
-            )
+            await write_task_audit(publisher, envelope, "failed", task_id, reason=str(exc)[:500])
 
         # Mark task processed for idempotency
         import contextlib
+
         with contextlib.suppress(Exception):
             await tracker.mark_processed(task_id)
 
