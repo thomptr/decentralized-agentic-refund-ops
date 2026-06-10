@@ -40,7 +40,9 @@ def _missing_data_recommendation(purchase_reference: str) -> EligibilityRecommen
             EvidenceItem(
                 source="refund_policy",
                 description="Data-completeness gate: no billing record found",
-                value={"reason": f"no billing record for purchase_reference={purchase_reference!r}"},
+                value={
+                    "reason": f"no billing record for purchase_reference={purchase_reference!r}"
+                },
             )
         ],
         policy_references=[],
@@ -80,7 +82,7 @@ def build_result_payload(
     rec: EligibilityRecommendation,
     facts: BillingFacts | None,
 ) -> BillingRefundAnalysisCompletedPayload:
-    """Map EligibilityRecommendation + BillingFacts + request → expanded result event payload (T014)."""
+    """Map recommendation + facts + request → expanded result event payload (T014)."""
     return BillingRefundAnalysisCompletedPayload(
         case_id=request.case_id,
         ticket_id=request.ticket_id,
@@ -106,7 +108,7 @@ def build_result_payload(
 
 
 def build_a2a_output(rec: EligibilityRecommendation) -> A2AMessage:
-    """Build the A2A output message from a recommendation (003's normalize_billing_result consumes this)."""
+    """Build the A2A output message from a recommendation (consumed by 003)."""
     return A2AMessage(
         role="agent",
         parts=[

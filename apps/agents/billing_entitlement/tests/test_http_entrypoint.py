@@ -42,6 +42,7 @@ def _make_task_body(purchase_reference: str = "PR-APPROVE") -> dict:
 
 # --- Agent Card (acceptance criterion 1) ---
 
+
 def test_agent_card_lists_capability():
     resp = _client.get("/.well-known/agent.json")
     assert resp.status_code == 200
@@ -57,6 +58,7 @@ def test_ping_ok():
 
 
 # --- POST /a2a/tasks (acceptance criterion 2) ---
+
 
 def test_post_task_approve_case_returns_recommendation():
     resp = _client.post("/a2a/tasks", json=_make_task_body("PR-APPROVE"))
@@ -82,10 +84,13 @@ def test_post_task_deny_case_returns_deny():
 
 
 def test_post_task_malformed_returns_failed():
-    resp = _client.post("/a2a/tasks", json={
-        "task_id": str(uuid.uuid4()),
-        "input": {"role": "user", "parts": [{"type": "text", "text": "not data"}]},
-    })
+    resp = _client.post(
+        "/a2a/tasks",
+        json={
+            "task_id": str(uuid.uuid4()),
+            "input": {"role": "user", "parts": [{"type": "text", "text": "not data"}]},
+        },
+    )
     result = resp.json()
     assert result["status"] == "failed"
     assert result["error"]["category"] == "handler_error"

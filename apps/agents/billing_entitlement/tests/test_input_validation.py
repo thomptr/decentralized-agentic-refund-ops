@@ -32,6 +32,7 @@ def _valid_data(**overrides) -> dict:
 
 # --- Valid inputs ---
 
+
 def test_valid_data_part_accepted():
     req = validate_input(_data_part(_valid_data()))
     assert req.ticket_id == "TKT-001"
@@ -62,6 +63,7 @@ def test_zero_refund_amount_accepted():
 
 
 # --- Invalid inputs ---
+
 
 def test_no_data_part_raises():
     with pytest.raises((ValueError, Exception)):

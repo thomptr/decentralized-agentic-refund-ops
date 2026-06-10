@@ -39,7 +39,9 @@ def _invoice(
     )
 
 
-def _payment(ref: str, *, captured: bool = True, amount: float = 49.99, reversed_amount: float = 0.0) -> Payment:
+def _payment(
+    ref: str, *, captured: bool = True, amount: float = 49.99, reversed_amount: float = 0.0
+) -> Payment:
     return Payment(
         payment_id=f"PAY-{ref}",
         invoice_id=f"INV-{ref}",

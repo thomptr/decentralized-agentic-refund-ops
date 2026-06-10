@@ -1,4 +1,4 @@
-"""Domain isolation test — all EvidenceItem.source values are owned domains (T020 — SC-003/FR-009)."""
+"""Domain isolation — all EvidenceItem.source values are owned domains (T020 — SC-003/FR-009)."""
 
 from __future__ import annotations
 

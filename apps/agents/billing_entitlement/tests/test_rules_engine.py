@@ -1,4 +1,4 @@
-"""Rules-engine tests — truth table, single-fact matrix, uncertainty, determinism (T009/T022/T024)."""
+"""Rules-engine tests — truth table, single-fact matrix, uncertainty, determinism (T009/T022)."""
 
 from __future__ import annotations
 
@@ -36,6 +36,7 @@ def _request(purchase_reference: str = "PR-APPROVE") -> RefundEligibilityRequest
 # ---------------------------------------------------------------------------
 # Approve / deny / human-review truth table (SC-004)
 # ---------------------------------------------------------------------------
+
 
 def test_approve_case():
     facts = load_facts("PR-APPROVE", "any")
@@ -102,6 +103,7 @@ def test_borderline_approve_with_lowered_confidence():
 # ---------------------------------------------------------------------------
 # Single-fact matrix off PR-APPROVE (SC-004) — vary one column at a time
 # ---------------------------------------------------------------------------
+
 
 def _now() -> datetime:
     return datetime.now(UTC)
@@ -176,7 +178,13 @@ def test_single_fact_flip_paid_causes_deny():
             issued_at=now - timedelta(days=5),
             paid=False,  # unpaid
         ),
-        payment=Payment(payment_id="PAY-1", invoice_id="INV-1", captured=False, amount=49.99, reversed_amount=0.0),
+        payment=Payment(
+            payment_id="PAY-1",
+            invoice_id="INV-1",
+            captured=False,
+            amount=49.99,
+            reversed_amount=0.0,
+        ),
         entitlement=facts.entitlement,
         usage=facts.usage,
     )
@@ -223,6 +231,7 @@ def test_single_fact_flip_reversal_causes_deny():
 # ---------------------------------------------------------------------------
 # Missing / contradictory paths — uncertainty (T022 — FR-010/FR-011/SC-005)
 # ---------------------------------------------------------------------------
+
 
 def test_missing_invoice_returns_request_more_information():
     now = _now()
@@ -275,7 +284,10 @@ def test_no_fabricated_verdict_on_contradiction():
     facts = load_facts("PR-CONTRADICTION", "any")
     assert facts is not None
     rec = evaluate(facts, _request("PR-CONTRADICTION"), REFUND_POLICY)
-    assert rec.recommendation not in (Recommendation.APPROVE_FULL_REFUND, Recommendation.DENY_REFUND)
+    assert rec.recommendation not in (
+        Recommendation.APPROVE_FULL_REFUND,
+        Recommendation.DENY_REFUND,
+    )
 
 
 def test_reason_recorded_on_manual_review():
@@ -289,6 +301,7 @@ def test_reason_recorded_on_manual_review():
 # ---------------------------------------------------------------------------
 # Confidence schedule (research R6)
 # ---------------------------------------------------------------------------
+
 
 def test_confidence_09_on_clear_approve():
     facts = load_facts("PR-APPROVE", "any")
@@ -327,6 +340,7 @@ def test_confidence_02_on_missing_data():
 # ---------------------------------------------------------------------------
 # Determinism — same inputs → same output (T024 — FR-012/SC-006)
 # ---------------------------------------------------------------------------
+
 
 def test_determinism_same_facts_same_output():
     """Evaluating the same (facts, request, policy) twice yields identical recommendations."""

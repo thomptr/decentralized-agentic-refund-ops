@@ -74,14 +74,22 @@ def test_billing_partial_refund():
 
 
 def test_billing_approve_full_refund():
-    data = {"recommendation": "approve_full_refund", "confidence": 0.9, "requires_human_review": False}
+    data = {
+        "recommendation": "approve_full_refund",
+        "confidence": 0.9,
+        "requires_human_review": False,
+    }
     finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
     assert finding is not None
     assert finding.eligibility == "eligible"
 
 
 def test_billing_approve_partial_refund():
-    data = {"recommendation": "approve_partial_refund", "confidence": 0.6, "requires_human_review": False}
+    data = {
+        "recommendation": "approve_partial_refund",
+        "confidence": 0.6,
+        "requires_human_review": False,
+    }
     finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
     assert finding is not None
     assert finding.eligibility == "partial"
@@ -95,7 +103,11 @@ def test_billing_deny_refund():
 
 
 def test_billing_request_more_information():
-    data = {"recommendation": "request_more_information", "confidence": 0.2, "requires_human_review": True}
+    data = {
+        "recommendation": "request_more_information",
+        "confidence": 0.2,
+        "requires_human_review": True,
+    }
     finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
     assert finding is not None
     assert finding.eligibility == "indeterminate"

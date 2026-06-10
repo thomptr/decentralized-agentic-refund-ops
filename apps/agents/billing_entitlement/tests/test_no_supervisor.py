@@ -43,6 +43,7 @@ def test_no_a2a_client_import_in_domain_modules():
 def test_no_peer_delegation_in_handler():
     """Handler in main.py must not delegate to any peer agent."""
     src = _source_text("main.py")
-    assert "find_capable" not in src or "publish" in src  # discovery is for card, not for delegating
+    # discovery is for card, not for delegating
+    assert "find_capable" not in src or "publish" in src
     assert "delegate(" not in src
     assert "dispatch(" not in src

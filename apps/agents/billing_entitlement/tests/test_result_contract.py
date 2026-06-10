@@ -1,4 +1,4 @@
-"""Result-contract tests — BillingRefundAnalysisCompletedPayload round-trip + registry (T013 — SC-009)."""
+"""Result-contract tests — payload round-trip + registry (T013 — SC-009)."""
 
 from __future__ import annotations
 

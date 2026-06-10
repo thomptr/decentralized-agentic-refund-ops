@@ -90,9 +90,7 @@ def evaluate(
     borderline_window = days_since_invoice == REFUND_WINDOW_DAYS
 
     usage_ratio = (
-        usage.usage_units / usage.allotment_units
-        if usage and usage.allotment_units > 0
-        else 0.0
+        usage.usage_units / usage.allotment_units if usage and usage.allotment_units > 0 else 0.0
     )
     is_heavy_usage = usage_ratio > USAGE_HEAVY_THRESHOLD
     borderline_usage = usage is not None and abs(usage_ratio - USAGE_HEAVY_THRESHOLD) < 1e-9
@@ -107,11 +105,7 @@ def evaluate(
     contradictions: list[str] = []
 
     # Payment contradiction: partial reversal already applied on a paid invoice
-    if (
-        payment.reversed_amount > 0
-        and invoice.paid
-        and payment.reversed_amount < payment.amount
-    ):
+    if payment.reversed_amount > 0 and invoice.paid and payment.reversed_amount < payment.amount:
         contradictions.append(
             f"payment.reversed_amount={payment.reversed_amount} > 0 "
             "on a paid invoice (partial reversal already applied)"
@@ -180,7 +174,11 @@ def evaluate(
             EvidenceItem(
                 source="subscription",
                 description="Subscription status",
-                value={"subscription_id": subscription.subscription_id, "status": subscription.status, "term": subscription.term},
+                value={
+                    "subscription_id": subscription.subscription_id,
+                    "status": subscription.status,
+                    "term": subscription.term,
+                },
             )
         )
     if usage:

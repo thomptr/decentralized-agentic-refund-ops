@@ -62,6 +62,7 @@ def _facts(entitlement: Entitlement | None, sub_status: str = "active") -> Billi
 # Deterministic four-signal matrix (no clock, no random — FR-012)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("run", [1, 2])
 def test_normal_granted_not_used(run: int):
     facts = _facts(_ent(access_granted=True, access_used=False))
@@ -92,6 +93,7 @@ def test_not_granted_not_used(run: int):
 # ---------------------------------------------------------------------------
 # Mismatch detection (acceptance criteria 1 — T053/T055)
 # ---------------------------------------------------------------------------
+
 
 def test_mismatch_not_granted_but_used():
     """access_granted=False yet access_used=True → mismatch."""
@@ -139,6 +141,7 @@ def test_mismatch_leads_to_manual_review_in_rules_engine():
 # No / absent entitlement → approve-supporting (acceptance criteria 2)
 # ---------------------------------------------------------------------------
 
+
 def test_no_entitlement_check_returns_no_mismatch():
     facts = _facts(None)
     check = check_entitlement(facts)
@@ -150,6 +153,7 @@ def test_no_entitlement_check_returns_no_mismatch():
 # ---------------------------------------------------------------------------
 # Active access + high usage (acceptance criteria 3)
 # ---------------------------------------------------------------------------
+
 
 def test_high_usage_with_active_access_via_mock():
     """PR-HEAVY-USAGE: active access + high usage → deny_refund (RP-003 + RP-004)."""
@@ -164,6 +168,7 @@ def test_high_usage_with_active_access_via_mock():
 # ---------------------------------------------------------------------------
 # Evidence item format (source='entitlement', never raw internals)
 # ---------------------------------------------------------------------------
+
 
 def test_evidence_source_is_entitlement():
     facts = _facts(_ent())
@@ -183,7 +188,9 @@ def test_evidence_description_is_concise_summary():
 
 
 def test_evidence_value_contains_boolean_signals():
-    facts = _facts(_ent(access_granted=True, access_used=False, feature_enabled=True, account_active=True))
+    facts = _facts(
+        _ent(access_granted=True, access_used=False, feature_enabled=True, account_active=True)
+    )
     check = check_entitlement(facts)
     ev = build_entitlement_evidence(check)
     assert isinstance(ev.value, dict)

@@ -72,6 +72,7 @@ def _base_facts(*, days_ago: float = 5) -> BillingFacts:
 
 # --- RP-001: refund window ---
 
+
 def test_rp001_within_window_does_not_fire():
     facts = _base_facts(days_ago=5)
     rec = evaluate(facts, _request(), REFUND_POLICY)
@@ -97,6 +98,7 @@ def test_rp001_borderline_exactly_30_days_within():
 
 # --- RP-002: paid invoice ---
 
+
 def test_rp002_unpaid_fires():
     facts = _base_facts()
     assert facts.invoice is not None
@@ -112,7 +114,13 @@ def test_rp002_unpaid_fires():
             issued_at=now - timedelta(days=5),
             paid=False,
         ),
-        payment=Payment(payment_id="PAY-1", invoice_id="INV-1", captured=False, amount=49.99, reversed_amount=0.0),
+        payment=Payment(
+            payment_id="PAY-1",
+            invoice_id="INV-1",
+            captured=False,
+            amount=49.99,
+            reversed_amount=0.0,
+        ),
         entitlement=facts.entitlement,
         usage=facts.usage,
     )
@@ -123,11 +131,16 @@ def test_rp002_unpaid_fires():
 
 def test_rp002_already_fully_reversed_fires():
     facts = _base_facts()
-    now = _now()
     facts = BillingFacts(
         subscription=facts.subscription,
         invoice=facts.invoice,
-        payment=Payment(payment_id="PAY-1", invoice_id="INV-1", captured=True, amount=49.99, reversed_amount=49.99),
+        payment=Payment(
+            payment_id="PAY-1",
+            invoice_id="INV-1",
+            captured=True,
+            amount=49.99,
+            reversed_amount=49.99,
+        ),
         entitlement=facts.entitlement,
         usage=facts.usage,
     )
@@ -137,6 +150,7 @@ def test_rp002_already_fully_reversed_fires():
 
 
 # --- RP-003: entitlement delivered ---
+
 
 def test_rp003_not_delivered_approve_supporting():
     facts = _base_facts()
@@ -170,6 +184,7 @@ def test_rp003_delivered_no_automatic_deny():
 
 # --- RP-004: usage threshold ---
 
+
 def test_rp004_heavy_usage_fires():
     facts = _base_facts()
     facts = BillingFacts(
@@ -201,6 +216,7 @@ def test_rp004_borderline_exactly_at_threshold_does_not_fire():
 
 
 # --- RP-005: subscription status ---
+
 
 def test_rp005_active_sub_contributes_evidence():
     facts = _base_facts()
