@@ -26,6 +26,7 @@ source "${SCRIPT_DIR}/lib/common.sh"
 # ---------------------------------------------------------------------------
 OPT_VERIFY=false
 OPT_WITH_HTTP=false
+OPT_WITH_UI=false
 
 for arg in "$@"; do
     case "${arg}" in
@@ -34,6 +35,9 @@ for arg in "$@"; do
             ;;
         --with-http)
             OPT_WITH_HTTP=true
+            ;;
+        --with-ui)
+            OPT_WITH_UI=true
             ;;
         --help|-h)
             cat <<'HELP'
@@ -45,6 +49,7 @@ Usage:
 Options:
   --verify      After launching, check that agent-card topics are present in Kafka.
   --with-http   Also start HTTP surfaces for billing (PORT=8101) and risk (A2A_ENDPOINT_PORT=8103) agents.
+  --with-ui     Also start the read-only demo UI (Streamlit) on port 8200.
   --help, -h    Show this help message.
 
 Environment variables (with defaults):
@@ -158,6 +163,17 @@ fi
 start_agent "customer-resolution" "uv run demo-customer-resolution"
 
 # ---------------------------------------------------------------------------
+# Optional --with-ui: launch the read-only demo UI as a 4th observer service.
+# It is an observer with one bounded write only — NO wait loop, NO supervisor
+# (preserves AC1: the script still exits immediately after launching).
+# ---------------------------------------------------------------------------
+if "${OPT_WITH_UI}"; then
+    log_info "  --with-ui: starting demo UI (Streamlit) on port ${DEMO_UI_PORT}"
+    UI_PORT="${DEMO_UI_PORT}" start_agent "demo-ui" \
+        "UI_PORT=${DEMO_UI_PORT} uv run demo-ui"
+fi
+
+# ---------------------------------------------------------------------------
 # Optional --verify mode: check agent-card topics are present (T057)
 # ---------------------------------------------------------------------------
 if "${OPT_VERIFY}"; then
@@ -191,6 +207,9 @@ log_info ""
 log_info "  billing-entitlement  PID $(cat "${LOCALRUN_PIDS}/billing-entitlement.pid" 2>/dev/null || echo '?')  log: ${LOCALRUN_LOGS}/billing-entitlement.log"
 log_info "  risk-fraud           PID $(cat "${LOCALRUN_PIDS}/risk-fraud.pid" 2>/dev/null || echo '?')  log: ${LOCALRUN_LOGS}/risk-fraud.log"
 log_info "  customer-resolution  PID $(cat "${LOCALRUN_PIDS}/customer-resolution.pid" 2>/dev/null || echo '?')  log: ${LOCALRUN_LOGS}/customer-resolution.log"
+if "${OPT_WITH_UI}"; then
+    log_info "  demo-ui              PID $(cat "${LOCALRUN_PIDS}/demo-ui.pid" 2>/dev/null || echo '?')  log: ${LOCALRUN_LOGS}/demo-ui.log"
+fi
 log_info ""
 log_info "Next steps:"
 log_info "  uv run python apps/api/dev_publish_ticket.py"
@@ -198,4 +217,7 @@ log_info "  uv run python apps/api/trace_case.py <correlation_id>"
 log_info ""
 log_info "To stop: bash scripts/stop-local-system.sh"
 log_info "Kafka UI: http://localhost:${KAFKA_UI_PORT}"
+if "${OPT_WITH_UI}"; then
+    log_info "Demo UI: http://localhost:${DEMO_UI_PORT}"
+fi
 log_info "---------------------------------------------------------------"
