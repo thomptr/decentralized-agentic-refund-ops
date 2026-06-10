@@ -12,16 +12,13 @@ All handlers are idempotent via IdempotencyTracker + case-status guards (FR-011/
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 
 from agent_foundation.audit.store import write_audit, write_task_audit
 from agent_foundation.envelope import EventEnvelope
 from agent_foundation.transport.publisher import Publisher
-from apps.agents.customer_resolution.config import (
-    DELEGATION_TIMEOUT_SECONDS,
-)
 from apps.agents.customer_resolution.decision_engine import (
     decide,
     requires_human_approval,
@@ -152,7 +149,7 @@ def normalize_risk_result(
             return RiskFinding(
                 level=level,
                 requires_human_review=bool(data.get("requires_human_review", False)),
-                score=data.get("confidence"),
+                score=_uncertainty_from_confidence(data.get("confidence")),
                 summary=data.get("reasoning_summary", ""),
                 performer_agent_id=performer_agent_id,
                 task_id=task_id,
@@ -178,6 +175,21 @@ def _risk_level_from_score(score: float, elevated: float, high: float) -> str:
     if score >= elevated:
         return "elevated"
     return "low"
+
+
+def _uncertainty_from_confidence(confidence: float | None) -> float | None:
+    """Map an agent's assessment *confidence* (certainty) to RiskFinding.score.
+
+    The decision engine's compute_confidence treats RiskFinding.score as
+    uncertainty: routing certainty == 1.0 - score. The risk agent reports
+    `confidence` as its certainty (e.g. 0.9 == very sure), so the matching score
+    is 1.0 - confidence. Storing the confidence directly would invert the signal
+    and make a confident low-risk finding look maximally uncertain → spurious
+    low_confidence escalations.
+    """
+    if confidence is None:
+        return None
+    return max(0.0, min(1.0, 1.0 - float(confidence)))
 
 
 # ---------------------------------------------------------------------------
@@ -333,9 +345,11 @@ async def intake_handler(
 
     # Refund → delegate to peers (US2)
     case.status = CaseStatus.WAITING_FOR_PEER_REVIEWS
-    # Set deadline (recorded but not enforced, research R6)
-    deadline_secs = DELEGATION_TIMEOUT_SECONDS
-    case.deadline_at = datetime.fromtimestamp(datetime.now(UTC).timestamp() + deadline_secs, tz=UTC)
+    # Root the case deadline (FR-017, T005) — enforced by the reaper (T021)
+    from apps.agents.customer_resolution.config import CASE_DEADLINE_SECONDS
+
+    now_ts = datetime.now(UTC)
+    case.deadline_at = datetime.fromtimestamp(now_ts.timestamp() + CASE_DEADLINE_SECONDS, tz=UTC)
     await store.save(case)
 
     try:
@@ -412,7 +426,21 @@ async def result_handler(
 
     # Determine which slot this result belongs to
     is_billing = case.billing_task_id == task_id
+    is_risk = case.risk_task_id == task_id
     performer = result.performer_agent_id
+
+    # Billing and risk results are delivered on BOTH this generic A2A task-result
+    # topic AND their richer domain topics (dual-path delivery, T020). The
+    # dedicated billing_result_handler / risk_result_handler own those slots —
+    # they carry full payload fields (e.g. usage_level) that the thin A2A result
+    # lacks, and they are the single authoritative attach point. Defer a COMPLETED
+    # billing/risk result to them so the decision is driven once, from the domain
+    # event (keeping the decided event's causation deterministic and avoiding a
+    # degraded duplicate finding). Failures still flow through here because a
+    # failed task is only ever delivered as an A2A task result.
+    if result.status == "completed" and (is_billing or is_risk):
+        await write_task_audit(publisher, envelope, "duplicate_skipped", task_id, "dual_path")
+        return
 
     if result.status == "completed" and result.output and result.output.parts:
         data_part = next((p for p in result.output.parts if p.type == "data"), None)
@@ -461,13 +489,26 @@ async def result_handler(
 async def _apply_decision(
     case: ResolutionCase,
     *,
-    envelope: EventEnvelope,
+    envelope: EventEnvelope | None = None,
+    causation_id: UUID | None = None,
     publisher: Publisher,
     store: InMemoryCaseStateStore,
 ) -> None:
-    """Apply the decision policy and emit exactly one decision per case (FR-007)."""
-    if case.status == CaseStatus.DECIDED or is_terminal(case.status):
+    """Apply the decision policy and emit exactly one decision per case (FR-007).
+
+    Accepts either an ``envelope`` (normal event-driven path) or an explicit
+    ``causation_id`` (reaper path, T021).  One of the two must be supplied.
+    """
+    # Atomically claim the exclusive right to decide. Concurrent handler loops
+    # (billing/risk domain events + generic A2A task results + reaper) can all
+    # observe the case ready at once; only the claimant emits a decision (FR-007).
+    if not await store.claim_decision(case.case_id):
         return
+    case = await store.get(case.case_id) or case
+
+    effective_causation_id: UUID = (
+        envelope.event_id if envelope is not None else (causation_id or uuid4())
+    )
 
     ts = build_timeout_status(case, now=datetime.now(UTC))
     policy = PolicyContext()
@@ -490,7 +531,7 @@ async def _apply_decision(
     )
 
     await _emit_decision_and_draft(
-        case, decision, publisher=publisher, causation_id=envelope.event_id
+        case, decision, publisher=publisher, causation_id=effective_causation_id
     )
 
     case.status = CaseStatus.DECIDED
@@ -552,6 +593,15 @@ async def billing_result_handler(
     else:
         eligibility = "indeterminate"
 
+    # Heavy-usage denials (RP-004) are not a flat "no": the customer consumed
+    # most of the value, so the resolution policy treats them as partial-credit
+    # candidates (decision-policy Row 6 → offer_partial_credit) rather than an
+    # outright ineligible verdict. usage_level is only present on the rich domain
+    # payload, which is why this mapping lives here (the thin A2A result defers
+    # to this handler — see result_handler).
+    if eligibility == "ineligible" and payload.usage_level == "heavy":
+        eligibility = "partial"
+
     finding = BillingFinding(
         eligibility=eligibility,
         requires_human_review=payload.requires_human_review,
@@ -562,7 +612,8 @@ async def billing_result_handler(
 
     case.billing_result_event_id = envelope.event_id
     outcome = await store.apply_result(case.case_id, case.billing_task_id, finding)
-    await write_task_audit(publisher, envelope, outcome, case.billing_task_id)
+    if outcome == AttachOutcome.ATTACHED:
+        await write_task_audit(publisher, envelope, "completed", case.billing_task_id)
 
     case = await store.get(case.case_id) or case
     if (
@@ -620,15 +671,27 @@ async def risk_result_handler(
     finding = RiskFinding(
         level=level,
         requires_human_review=payload.requires_human_review,
-        score=payload.confidence,
+        score=_uncertainty_from_confidence(payload.confidence),
         summary=payload.reasoning_summary,
         task_id=case.risk_task_id,
     )
 
-    # High risk can force immediate escalation (AC4, Phase 16)
+    # High risk can force immediate escalation (AC4, Phase 16) — but only when
+    # billing has NOT already returned an ineligible verdict. When billing is
+    # ineligible, an elevated/high risk signal *corroborates* a denial rather
+    # than a conflict, so the case must deny (decision-policy Row 5), not
+    # escalate. Those cases fall through to the unified decision engine below.
     _high_risk = finding.level in ("elevated", "high") or finding.requires_human_review
+    _billing_ineligible = (
+        case.billing_result is not None and case.billing_result.eligibility == "ineligible"
+    )
     _decidable = case.status not in (CaseStatus.DECIDED,) and not is_terminal(case.status)
-    if _high_risk and _decidable:
+    if _high_risk and not _billing_ineligible and _decidable:
+        # Claim the single decision atomically so this immediate-escalation path
+        # cannot race a billing-triggered decision (FR-007).
+        if not await store.claim_decision(case.case_id):
+            return
+        case = await store.get(case.case_id) or case
         decision = CustomerResponseDecisionPayload(
             case_id=case.correlation_id,
             ticket_id=case.ticket_id,
@@ -641,7 +704,6 @@ async def risk_result_handler(
         )
         case.risk_result_event_id = envelope.event_id
         case.risk_result = finding
-        await store.save(case)
         await _emit_decision_and_draft(
             case, decision, publisher=publisher, causation_id=envelope.event_id
         )
@@ -656,7 +718,8 @@ async def risk_result_handler(
 
     case.risk_result_event_id = envelope.event_id
     outcome = await store.apply_result(case.case_id, case.risk_task_id, finding)
-    await write_task_audit(publisher, envelope, outcome, case.risk_task_id)
+    if outcome == AttachOutcome.ATTACHED:
+        await write_task_audit(publisher, envelope, "completed", case.risk_task_id)
 
     case = await store.get(case.case_id) or case
     if (

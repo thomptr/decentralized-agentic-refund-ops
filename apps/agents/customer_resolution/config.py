@@ -5,6 +5,8 @@ All thresholds and capability IDs are PoC illustrative values, not production po
 
 from __future__ import annotations
 
+import os as _os
+
 from packages.contracts.events.payloads import ResolutionOutcome
 
 # Agent identity
@@ -34,6 +36,11 @@ RISK_MEDIUM = "elevated"
 
 # Delegation timeout (Phase 11/14)
 DELEGATION_TIMEOUT_SECONDS: int = 30
+
+# Case-level deadline enforced by the reaper (006 T002)
+# Distinct from DELEGATION_TIMEOUT_SECONDS (which is per-A2A-call; this is the hard case deadline).
+CASE_DEADLINE_SECONDS: int = int(_os.environ.get("AGENT_CASE_DEADLINE_SECONDS", "15"))
+REAPER_TICK_SECONDS: float = float(_os.environ.get("AGENT_REAPER_TICK_SECONDS", "1.0"))
 
 # Human approval policy (Phase 17): outcomes that require a human gate before acting
 # escalate_human always needs a human; approve_refund moves money so is human-gated.

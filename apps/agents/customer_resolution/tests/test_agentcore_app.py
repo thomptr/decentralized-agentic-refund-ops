@@ -53,7 +53,7 @@ def test_refund_ticket_approves_with_eligible_and_low_risk():
     result = _invoke(
         _payload(
             billing_result={"recommendation": "approve_full_refund", "confidence": 0.9},
-            risk_result={"recommendation": "low", "confidence": 0.1},
+            risk_result={"recommendation": "low", "confidence": 0.9},
         )
     )
     assert result["status"] == "completed"
@@ -61,14 +61,15 @@ def test_refund_ticket_approves_with_eligible_and_low_risk():
 
 
 def test_refund_ticket_denies_with_ineligible_and_elevated_risk():
-    # risk "confidence" is the fraud score; keep it modest so decision-confidence clears the
-    # threshold and we land on the deny row rather than a low_confidence escalation.
+    # risk "confidence" is the agent's certainty in its verdict (high == sure). A confident
+    # elevated-risk read keeps decision-confidence above threshold, so an ineligible billing
+    # opinion is corroborated and we land on the deny row, not a low_confidence escalation.
     from apps.agents.customer_resolution.agentcore_app import _invoke
 
     result = _invoke(
         _payload(
             billing_result={"recommendation": "deny_refund", "confidence": 0.9},
-            risk_result={"recommendation": "elevated", "confidence": 0.3},
+            risk_result={"recommendation": "elevated", "confidence": 0.9},
         )
     )
     assert result["status"] == "completed"
@@ -76,13 +77,13 @@ def test_refund_ticket_denies_with_ineligible_and_elevated_risk():
 
 
 def test_high_confidence_high_risk_escalates_to_human():
-    # A confident high-risk verdict drives decision-confidence below threshold, so the engine
-    # fails safe to a human rather than auto-denying (realistic three-agent behavior).
+    # Eligible billing but a confident high-risk verdict is a genuine conflict (billing says
+    # refund-worthy, risk says fraud), so the engine escalates to a human rather than approving.
     from apps.agents.customer_resolution.agentcore_app import _invoke
 
     result = _invoke(
         _payload(
-            billing_result={"recommendation": "deny_refund", "confidence": 0.9},
+            billing_result={"recommendation": "approve_full_refund", "confidence": 0.9},
             risk_result={"recommendation": "high", "confidence": 0.95},
         )
     )
@@ -148,7 +149,7 @@ def test_no_publisher_constructed(monkeypatch):
     _invoke(
         _payload(
             billing_result={"recommendation": "approve_full_refund", "confidence": 0.9},
-            risk_result={"recommendation": "low", "confidence": 0.1},
+            risk_result={"recommendation": "low", "confidence": 0.9},
         )
     )
     assert published == [], f"Unexpected Kafka activity: {published}"
@@ -160,7 +161,7 @@ def test_response_includes_required_decision_fields():
     result = _invoke(
         _payload(
             billing_result={"recommendation": "approve_full_refund", "confidence": 0.9},
-            risk_result={"recommendation": "low", "confidence": 0.1},
+            risk_result={"recommendation": "low", "confidence": 0.9},
         )
     )
     assert result["status"] == "completed"

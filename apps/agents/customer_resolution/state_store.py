@@ -75,6 +75,8 @@ class CaseStateStore(Protocol):
 
     async def transition(self, case_id: UUID, to_status: CaseStatus) -> ResolutionCase: ...
 
+    async def list_timed_out_cases(self, now: datetime) -> list[ResolutionCase]: ...
+
 
 class InMemoryCaseStateStore:
     """In-process CaseStateStore implementation (Phase 14 T091).
@@ -239,6 +241,27 @@ class InMemoryCaseStateStore:
 
             return AttachOutcome.ATTACHED
 
+    async def claim_decision(self, case_id: UUID) -> bool:
+        """Atomically claim the exclusive right to emit the decision (FR-007).
+
+        Returns True for exactly one caller and False thereafter. Several handler
+        loops (billing/risk domain events plus the generic A2A task-result loop)
+        can observe a case ready-to-decide at the same time; the store lock makes
+        the check-and-set indivisible so only the claimant emits a decision.
+        The case is moved to DECIDED; callers that need a different terminal
+        status (e.g. ESCALATED) overwrite it after emitting.
+        """
+        async with self._lock:
+            case = self._cases.get(case_id)
+            if case is None:
+                return False
+            if case.status == CaseStatus.DECIDED or is_terminal(case.status):
+                return False
+            case.status = CaseStatus.DECIDED
+            case.updated_at = datetime.now(UTC)
+            case.version += 1
+            return True
+
     async def mark_slot_failed(
         self,
         case_id: UUID,
@@ -290,6 +313,23 @@ class InMemoryCaseStateStore:
         case = self._cases.get(case_id)
         if case is not None:
             case.deadline_at = deadline_at
+
+    async def list_timed_out_cases(self, now: datetime) -> list[ResolutionCase]:
+        """Return non-terminal cases whose deadline has passed and still have pending tasks.
+
+        Filters: (1) non-terminal status, (2) deadline_at is not None and now > deadline_at,
+        (3) pending_tasks is non-empty. Executed under the existing asyncio.Lock (T003).
+        """
+        async with self._lock:
+            return [
+                case
+                for case in self._cases.values()
+                if not is_terminal(case.status)
+                and case.status != CaseStatus.DECIDED
+                and case.deadline_at is not None
+                and now > case.deadline_at
+                and bool(case.pending_tasks)
+            ]
 
 
 def can_transition_to_ready(status: CaseStatus) -> bool:

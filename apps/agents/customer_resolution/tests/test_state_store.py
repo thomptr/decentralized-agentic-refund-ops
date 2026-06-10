@@ -173,3 +173,90 @@ async def test_unknown_case_returns_none():
     assert result2 is None
     result3 = await store.get_by_task_id(uuid.uuid4())
     assert result3 is None
+
+
+# ---------------------------------------------------------------------------
+# T004: list_timed_out_cases unit tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_list_timed_out_cases_past_deadline_with_pending():
+    """A non-terminal case past its deadline with pending tasks is returned."""
+    store = _make_store()
+    case = await _create_case(store)
+    task_id = uuid.uuid4()
+    await store.add_pending_task(case.case_id, task_id)
+
+    past = datetime(2020, 1, 1, tzinfo=UTC)
+    store.set_deadline(case.case_id, past)
+
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    timed_out = await store.list_timed_out_cases(now)
+    assert len(timed_out) == 1
+    assert timed_out[0].case_id == case.case_id
+
+
+@pytest.mark.asyncio
+async def test_list_timed_out_cases_no_deadline_excluded():
+    """A case without a deadline is not returned even if it has pending tasks."""
+    store = _make_store()
+    case = await _create_case(store)
+    task_id = uuid.uuid4()
+    await store.add_pending_task(case.case_id, task_id)
+    # deadline_at stays None
+
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    timed_out = await store.list_timed_out_cases(now)
+    assert timed_out == []
+
+
+@pytest.mark.asyncio
+async def test_list_timed_out_cases_future_deadline_excluded():
+    """A case whose deadline is in the future is not returned."""
+    store = _make_store()
+    case = await _create_case(store)
+    task_id = uuid.uuid4()
+    await store.add_pending_task(case.case_id, task_id)
+
+    future = datetime(2099, 1, 1, tzinfo=UTC)
+    store.set_deadline(case.case_id, future)
+
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    timed_out = await store.list_timed_out_cases(now)
+    assert timed_out == []
+
+
+@pytest.mark.asyncio
+async def test_list_timed_out_cases_empty_pending_excluded():
+    """A past-deadline case with no pending tasks is not returned."""
+    store = _make_store()
+    case = await _create_case(store)
+    # pending_tasks stays empty (never added a task)
+
+    past = datetime(2020, 1, 1, tzinfo=UTC)
+    store.set_deadline(case.case_id, past)
+
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    timed_out = await store.list_timed_out_cases(now)
+    assert timed_out == []
+
+
+@pytest.mark.asyncio
+async def test_list_timed_out_cases_terminal_excluded():
+    """A terminal (CLOSED/ESCALATED/DECIDED) case is not returned even if past deadline."""
+    store = _make_store()
+    for terminal_status in (CaseStatus.CLOSED, CaseStatus.ESCALATED, CaseStatus.DECIDED):
+        case = await _create_case(store, case_id=uuid.uuid4(), correlation_id=uuid.uuid4())
+        task_id = uuid.uuid4()
+        await store.add_pending_task(case.case_id, task_id)
+        past = datetime(2020, 1, 1, tzinfo=UTC)
+        store.set_deadline(case.case_id, past)
+        # Force terminal status directly
+        live_case = await store.get(case.case_id)
+        live_case.status = terminal_status
+        await store.save(live_case)
+
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    timed_out = await store.list_timed_out_cases(now)
+    assert timed_out == []

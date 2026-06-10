@@ -26,6 +26,7 @@ from apps.agents.customer_resolution.event_handlers import (
     result_handler,
     risk_result_handler,
 )
+from apps.agents.customer_resolution.reaper import run_reaper
 from apps.agents.customer_resolution.state_store import InMemoryCaseStateStore
 from packages.contracts.topics import (
     TOPIC_BILLING_RESULT,
@@ -129,4 +130,5 @@ class ResolutionService:
                 result_consumer.run(_result, stop_event=stop_event, publisher=publisher),
                 billing_consumer.run(_billing, stop_event=stop_event, publisher=publisher),
                 risk_consumer.run(_risk, stop_event=stop_event, publisher=publisher),
+                run_reaper(store, publisher, stop_event=stop_event),
             )

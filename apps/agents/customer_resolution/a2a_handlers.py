@@ -237,6 +237,22 @@ async def delegate(
     (Phase 11). Does not emit the announcement if either request fails (fail-closed).
     Records task_ids on the case and registers them in the state store.
     """
+    # Mint the stable idempotency keys (AC2) up front so BOTH pending tasks are
+    # registered BEFORE either TaskRequest is published. This ordering is
+    # essential: a peer can publish its result before the second request is even
+    # sent. If its task_id were not yet in pending_tasks the result would be
+    # dropped as "not pending" (then the reaper would wrongly escalate), and if
+    # only one task were registered a single early result could mark the case
+    # ready and decide prematurely. request_*_analysis reuse a preset task_id.
+    if case.billing_task_id is None:
+        case.billing_task_id = uuid.uuid5(case.correlation_id, BILLING_CAPABILITY_ID)
+    if case.risk_task_id is None:
+        case.risk_task_id = uuid.uuid5(case.correlation_id, RISK_CAPABILITY_ID)
+
+    if hasattr(state_store, "add_pending_task"):
+        await state_store.add_pending_task(case.case_id, case.billing_task_id)
+        await state_store.add_pending_task(case.case_id, case.risk_task_id)
+
     # Emit requests — billing first, then risk
     try:
         await request_billing_analysis(
@@ -251,13 +267,6 @@ async def delegate(
             case_id=str(case.case_id),
         )
         raise
-
-    # Register task_ids in the state store secondary index
-    if hasattr(state_store, "add_pending_task"):
-        if case.billing_task_id:
-            await state_store.add_pending_task(case.case_id, case.billing_task_id)
-        if case.risk_task_id:
-            await state_store.add_pending_task(case.case_id, case.risk_task_id)
 
     # Emit refund-review.requested announcement (Phase 11, T064)
     # "Accepted" == both publishes succeeded (async delegation model, research R2)
