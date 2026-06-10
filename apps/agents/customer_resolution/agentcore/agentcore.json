@@ -1,0 +1,19 @@
+{
+  "name": "CustomerResolution",
+  "version": 1,
+  "runtimes": [
+    {
+      "name": "CustomerResolution",
+      "build": "CodeZip",
+      "entrypoint": "main.py",
+      "codeLocation": "app/CustomerResolution/",
+      "runtimeVersion": "PYTHON_3_12",
+      "networkMode": "PUBLIC",
+      "protocol": "A2A"
+    }
+  ],
+  "memories": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": []
+}

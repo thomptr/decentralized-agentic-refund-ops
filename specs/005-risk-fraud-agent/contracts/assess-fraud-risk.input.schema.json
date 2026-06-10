@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://refundops.poc/contracts/005/assess-fraud-risk.input.schema.json",
+  "title": "AssessFraudRiskInput",
+  "description": "The `data` part of the A2A TaskRequest.input for the assess_fraud_risk capability. Sent by a requesting peer (e.g. the customer-resolution-agent) and validated by the risk-fraud-agent (FR-002). The agent validates the required fields and ignores unknown fields so the wire shape can evolve. Note: unlike the billing input there is NO purchase_reference; risk attaches to the customer/account, so customer_id is the primary signal-lookup key.",
+  "type": "object",
+  "required": [
+    "case_id",
+    "ticket_id",
+    "customer_id",
+    "requested_refund_amount"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Originating case correlation id. The agent publishes its risk result event with correlation_id == case_id so the requester's correlation-keyed consumer (risk_result_handler) matches it (research R2)."
+    },
+    "ticket_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Support ticket id; echoed into RiskReviewCompletedPayload.ticket_id."
+    },
+    "customer_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Primary signal-lookup key: the customer/account the risk signals attach to."
+    },
+    "requested_refund_amount": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Disputed amount; context for refund-abuse / velocity reasoning. Never the basis for a billing-eligibility judgment (FR-009)."
+    },
+    "customer_message_summary": {
+      "type": "string",
+      "description": "Optional context. Never overrides owned risk/fraud signals (FR-009)."
+    }
+  },
+  "additionalProperties": true
+}
