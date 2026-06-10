@@ -37,6 +37,7 @@ demo-customer-resolution = "apps.agents.customer_resolution.main:main"
 demo-billing-entitlement = "apps.agents.billing_entitlement.main:main"
 demo-billing-entitlement-http = "apps.agents.billing_entitlement.http_app:run"
 demo-risk-fraud = "apps.agents.risk_fraud.main:main"
+demo-risk-fraud-http = "apps.agents.risk_fraud.http_app:run"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_foundation", "packages"]
