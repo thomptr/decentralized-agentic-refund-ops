@@ -70,6 +70,46 @@ def test_billing_partial_refund():
     assert finding.eligibility == "partial"
 
 
+# --- 5-value vocabulary from billing-entitlement-agent (T017 — SC-009) ---
+
+
+def test_billing_approve_full_refund():
+    data = {"recommendation": "approve_full_refund", "confidence": 0.9, "requires_human_review": False}
+    finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
+    assert finding is not None
+    assert finding.eligibility == "eligible"
+
+
+def test_billing_approve_partial_refund():
+    data = {"recommendation": "approve_partial_refund", "confidence": 0.6, "requires_human_review": False}
+    finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
+    assert finding is not None
+    assert finding.eligibility == "partial"
+
+
+def test_billing_deny_refund():
+    data = {"recommendation": "deny_refund", "confidence": 0.9, "requires_human_review": False}
+    finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
+    assert finding is not None
+    assert finding.eligibility == "ineligible"
+
+
+def test_billing_request_more_information():
+    data = {"recommendation": "request_more_information", "confidence": 0.2, "requires_human_review": True}
+    finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
+    assert finding is not None
+    assert finding.eligibility == "indeterminate"
+    assert finding.requires_human_review is True
+
+
+def test_billing_manual_review():
+    data = {"recommendation": "manual_review", "confidence": 0.3, "requires_human_review": True}
+    finding = normalize_billing_result(_TASK_ID, _PERFORMER, data)
+    assert finding is not None
+    assert finding.eligibility == "indeterminate"
+    assert finding.requires_human_review is True
+
+
 def test_billing_unparseable_returns_none():
     finding = normalize_billing_result(_TASK_ID, _PERFORMER, {"garbage": "data"})
     assert finding is None

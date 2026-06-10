@@ -80,10 +80,15 @@ def normalize_billing_result(
     try:
         if "recommendation" in data:
             rec = data["recommendation"].lower()
-            if rec in ("approve", "eligible", "refund"):
+            # 5-value vocabulary from billing-entitlement-agent (T016 — SC-009)
+            if rec in ("approve_full_refund", "approve", "eligible", "refund"):
                 eligibility = "eligible"
-            elif rec in ("deny", "ineligible", "reject"):
+            elif rec == "approve_partial_refund":
+                eligibility = "partial"
+            elif rec in ("deny_refund", "deny", "ineligible", "reject"):
                 eligibility = "ineligible"
+            elif rec in ("request_more_information", "manual_review"):
+                eligibility = "indeterminate"
             elif rec == "partial_refund":
                 eligibility = "partial"
             else:
@@ -533,10 +538,15 @@ async def billing_result_handler(
         return
 
     rec = payload.recommendation.lower()
-    if rec in ("approve", "eligible", "refund"):
+    # 5-value vocabulary from billing-entitlement-agent (T016 — SC-009)
+    if rec in ("approve_full_refund", "approve", "eligible", "refund"):
         eligibility = "eligible"
-    elif rec in ("deny", "ineligible", "reject"):
+    elif rec == "approve_partial_refund":
+        eligibility = "partial"
+    elif rec in ("deny_refund", "deny", "ineligible", "reject"):
         eligibility = "ineligible"
+    elif rec in ("request_more_information", "manual_review"):
+        eligibility = "indeterminate"
     elif rec == "partial_refund":
         eligibility = "partial"
     else:

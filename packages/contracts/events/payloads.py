@@ -7,6 +7,7 @@ Future agents import from here and register their own event types.
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
@@ -149,12 +150,24 @@ class CustomerResponseDraftedPayload(BaseModel):
 class BillingRefundAnalysisCompletedPayload(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    # Original fields (preserved for 003 consumer compatibility)
     ticket_id: str
     recommendation: str
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
     evidence: list[EvidenceItem]
     reasoning_summary: str
     requires_human_review: bool
+    # Expanded fields (T003 — new fields carry safe defaults for backward compatibility)
+    case_id: UUID
+    customer_id: str
+    billing_account_id: str | None = None
+    subscription_status: str = "unknown"
+    invoice_status: str = "unknown"
+    payment_status: str = "unknown"
+    entitlement_status: str = "unknown"
+    usage_level: str = "unknown"
+    refund_window_status: str = "unknown"
+    eligible_refund_amount: Decimal = Decimal("0.00")
 
 
 class RiskReviewCompletedPayload(BaseModel):
