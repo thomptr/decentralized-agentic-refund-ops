@@ -20,6 +20,11 @@ http = [
     "uvicorn[standard]>=0.30",
     "httpx>=0.27",
 ]
+# Read-only Streamlit demo UI (apps/demo_ui) — observer dashboard on :8200
+ui = [
+    "streamlit>=1.36",
+    "httpx>=0.27",
+]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
@@ -38,6 +43,7 @@ demo-billing-entitlement = "apps.agents.billing_entitlement.main:main"
 demo-billing-entitlement-http = "apps.agents.billing_entitlement.http_app:run"
 demo-risk-fraud = "apps.agents.risk_fraud.main:main"
 demo-risk-fraud-http = "apps.agents.risk_fraud.http_app:run"
+demo-ui = "apps.demo_ui.launcher:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_foundation", "packages"]

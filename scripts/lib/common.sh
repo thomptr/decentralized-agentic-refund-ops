@@ -33,6 +33,7 @@ LOCALRUN_LOGS="${LOCALRUN_DIR}/logs"
 KAFKA_UI_PORT=8080
 BILLING_HTTP_PORT=8101
 RISK_HTTP_PORT=8103
+DEMO_UI_PORT=8200
 
 # ---------------------------------------------------------------------------
 # Logging helpers

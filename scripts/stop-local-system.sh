@@ -66,7 +66,7 @@ cd "${PROJECT_ROOT}"
 # ---------------------------------------------------------------------------
 if "${OPT_STATUS}"; then
     log_info "Agent status:"
-    for name in customer-resolution risk-fraud billing-entitlement; do
+    for name in demo-ui customer-resolution risk-fraud billing-entitlement; do
         pidfile="${LOCALRUN_PIDS}/${name}.pid"
         if [[ -f "${pidfile}" ]]; then
             pid="$(cat "${pidfile}")"
@@ -86,6 +86,7 @@ fi
 # Stop agents in reverse start order
 # ---------------------------------------------------------------------------
 log_info "Stopping agents ..."
+stop_agent "demo-ui"
 stop_agent "customer-resolution"
 stop_agent "risk-fraud"
 stop_agent "billing-entitlement"
