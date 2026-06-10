@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "risk-fraud-agent-agentcore"
+version = "1.0.0"
+description = "AgentCore dev-venv dependencies for the Risk Fraud Agent"
+readme = "README.md"
+requires-python = ">=3.12"
+# Third-party deps the dev venv needs. The agent's own modules (apps/, packages/,
+# agent_foundation) are imported from source via sys.path in main.py, so only their
+# runtime libraries are listed here — not the repo itself.
+dependencies = [
+    "bedrock-agentcore[a2a] >= 1.9.1",
+    "a2a-sdk[all] >= 0.2.0, < 1.0.0",
+    "pydantic >= 2",
+    "structlog >= 24",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

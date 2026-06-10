@@ -1,0 +1,7 @@
+[
+  {
+    "account": "123456789012",
+    "region": "us-east-1",
+    "note": "Placeholder — agentcore deploy is a documented future target, not built for this PoC."
+  }
+]

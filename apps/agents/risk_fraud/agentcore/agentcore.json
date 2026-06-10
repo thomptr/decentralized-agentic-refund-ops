@@ -1,0 +1,19 @@
+{
+  "name": "RiskFraud",
+  "version": 1,
+  "runtimes": [
+    {
+      "name": "RiskFraud",
+      "build": "CodeZip",
+      "entrypoint": "main.py",
+      "codeLocation": "app/RiskFraud/",
+      "runtimeVersion": "PYTHON_3_12",
+      "networkMode": "PUBLIC",
+      "protocol": "A2A"
+    }
+  ],
+  "memories": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": []
+}
