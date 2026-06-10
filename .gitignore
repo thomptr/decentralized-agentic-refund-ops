@@ -53,3 +53,6 @@ apps/agents/billing_entitlement/agentcore/.env.local
 
 # Temporary
 *.tmp
+
+# Local runtime state (agent PIDs, logs produced by start-local-system.sh)
+.local-run/
