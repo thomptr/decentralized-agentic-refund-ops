@@ -12,14 +12,13 @@ from __future__ import annotations
 
 import pytest
 
+from packages.contracts.events.payloads import ResolutionOutcome
 from tests.integration.fixtures.workflow_scenarios import ALL_SCENARIOS, get_scenario
 from tests.integration.fixtures.workflow_scenarios.schema import (
     SILENT,
     CaseStatus,
     ExpectedFinalState,
-    WorkflowScenario,
 )
-from packages.contracts.events.payloads import ResolutionOutcome
 
 _EXPECTED_SCENARIO_NAMES = {
     "happy_path_full_refund",
@@ -79,23 +78,18 @@ def test_scenario_internal_consistency(name: str):
         )
 
     # ESCALATED status ⇒ outcome is ESCALATE_HUMAN or no decision expected
-    if state.case_status == CaseStatus.ESCALATED:
-        if state.expects_decision:
-            assert state.outcome == ResolutionOutcome.ESCALATE_HUMAN, (
-                f"{name}: ESCALATED case with decision must have ESCALATE_HUMAN outcome"
-            )
+    if state.case_status == CaseStatus.ESCALATED and state.expects_decision:
+        assert state.outcome == ResolutionOutcome.ESCALATE_HUMAN, (
+            f"{name}: ESCALATED case with decision must have ESCALATE_HUMAN outcome"
+        )
 
     # expects_decision=False ⇒ outcome should be None
     if not state.expects_decision:
-        assert state.outcome is None, (
-            f"{name}: expects_decision=False must have outcome=None"
-        )
+        assert state.outcome is None, f"{name}: expects_decision=False must have outcome=None"
 
     # CLOSED ⇒ expects_decision=True
     if state.case_status == CaseStatus.CLOSED:
-        assert state.expects_decision, (
-            f"{name}: CLOSED case must have expects_decision=True"
-        )
+        assert state.expects_decision, f"{name}: CLOSED case must have expects_decision=True"
 
 
 def test_all_scenarios_unique_customer_ids():
@@ -116,7 +110,5 @@ def test_all_scenarios_unique_customer_ids():
     seen = {}
     for cid, name in customer_ids:
         if cid in seen:
-            pytest.fail(
-                f"Duplicate customer_id {cid!r} used by both {seen[cid]!r} and {name!r}"
-            )
+            pytest.fail(f"Duplicate customer_id {cid!r} used by both {seen[cid]!r} and {name!r}")
         seen[cid] = name

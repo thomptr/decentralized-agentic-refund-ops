@@ -18,7 +18,6 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from agent_foundation.envelope import EventEnvelope
@@ -27,16 +26,16 @@ from agent_foundation.envelope import EventEnvelope
 @dataclass
 class TraceStep:
     seq: int
-    actor: str            # agent_id that produced the event
+    actor: str  # agent_id that produced the event
     correlation_id: UUID  # labelled as "case_id" in output
-    event_type: str       # event type / action
-    outcome: Optional[str]  # outcome/status if available (from AuditPayload)
-    task_id: Optional[UUID]  # for A2A task steps (from AuditPayload)
+    event_type: str  # event type / action
+    outcome: str | None  # outcome/status if available (from AuditPayload)
+    task_id: UUID | None  # for A2A task steps (from AuditPayload)
     timestamp: datetime
-    caused_by: Optional[UUID]  # causation_id of this step
+    caused_by: UUID | None  # causation_id of this step
 
 
-def _extract_outcome(envelope: EventEnvelope) -> Optional[str]:
+def _extract_outcome(envelope: EventEnvelope) -> str | None:
     """Try to extract an outcome string from common payload shapes.
 
     Handles both AuditPayload (outcome field) and
@@ -48,7 +47,7 @@ def _extract_outcome(envelope: EventEnvelope) -> Optional[str]:
     return None
 
 
-def _extract_task_id(envelope: EventEnvelope) -> Optional[UUID]:
+def _extract_task_id(envelope: EventEnvelope) -> UUID | None:
     """Try to extract task_id from common payload shapes.
 
     Handles AuditPayload (task_id field), TaskRequest, and TaskResult shapes
@@ -86,10 +85,7 @@ def trace_case(correlation_id: UUID, envelopes: list[EventEnvelope]) -> list[Tra
         Ordered list of TraceStep, one entry per envelope.
     """
     # Step 1: filter to this correlation_id and build event_id map
-    relevant = [
-        e for e in envelopes
-        if e.correlation_id == correlation_id
-    ]
+    relevant = [e for e in envelopes if e.correlation_id == correlation_id]
     if not relevant:
         return []
 

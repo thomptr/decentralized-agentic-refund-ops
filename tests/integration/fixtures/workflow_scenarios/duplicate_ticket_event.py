@@ -17,9 +17,7 @@ from tests.integration.fixtures.workflow_scenarios.schema import (
 
 SCENARIO = WorkflowScenario(
     name="duplicate_ticket_event",
-    support_ticket=make_support_ticket(
-        "CUS-007-DUPTICKET", reason="charged twice", amount=49.99
-    ),
+    support_ticket=make_support_ticket("CUS-007-DUPTICKET", reason="charged twice", amount=49.99),
     mock_billing_profile=_billing_dataset["PR-APPROVE"],
     mock_risk_profile=_risk_dataset["CUS-CLEAN"],
     expected_final_state=ExpectedFinalState(

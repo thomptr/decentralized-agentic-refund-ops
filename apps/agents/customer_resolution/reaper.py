@@ -15,8 +15,8 @@ Design constraints:
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Callable
 from uuid import uuid4
 
 import structlog
@@ -46,7 +46,6 @@ async def run_reaper(
                       Inject a fixed clock for unit tests / replay neutralisation.
         tick_seconds: Override loop cadence; defaults to ``REAPER_TICK_SECONDS``.
     """
-    from apps.agents.customer_resolution.event_handlers import _apply_decision
 
     _now: Callable[[], datetime] = now or (lambda: datetime.now(UTC))
     _tick: float = tick_seconds if tick_seconds is not None else REAPER_TICK_SECONDS

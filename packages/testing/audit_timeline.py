@@ -23,7 +23,6 @@ from packages.contracts.topics import (
     TOPIC_RESPONSE_DRAFTED,
     TOPIC_RISK_RESULT,
     TOPIC_TASK_RESULT,
-    endpoint_topic,
 )
 
 # ---------------------------------------------------------------------------
@@ -206,8 +205,8 @@ class AuditTimelineBuilder:
         """Replay workflow topics from offset 0 and filter by correlation_id."""
         import asyncio
 
-        from agent_foundation.transport.consumer import Consumer
         from agent_foundation.envelope import AgentIdentity
+        from agent_foundation.transport.consumer import Consumer
 
         workflow_topics = [
             TOPIC_ISSUE_CLASSIFIED,
@@ -247,7 +246,7 @@ class AuditTimelineBuilder:
                 consumer.run(_handler, stop_event=stop_event),
                 timeout=5.0,
             )
-        except (TimeoutError, asyncio.TimeoutError):
+        except TimeoutError:
             pass
         finally:
             await consumer.stop()
@@ -289,9 +288,7 @@ def _causal_sort(envelopes: list[EventEnvelope]) -> list[EventEnvelope]:
 
     # Any envelopes not reached (disconnected) appended by timestamp
     seen = {e.event_id for e in result}
-    stragglers = sorted(
-        (e for e in envelopes if e.event_id not in seen), key=lambda e: e.timestamp
-    )
+    stragglers = sorted((e for e in envelopes if e.event_id not in seen), key=lambda e: e.timestamp)
     result.extend(stragglers)
 
     return result

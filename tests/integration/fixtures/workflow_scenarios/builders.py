@@ -14,15 +14,6 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from packages.contracts.events.payloads import SupportTicketCreatedPayload
-from packages.contracts.topics import (
-    TOPIC_AUDIT,
-    TOPIC_BILLING_RESULT,
-    TOPIC_ISSUE_CLASSIFIED,
-    TOPIC_REFUND_REVIEW_REQUESTED,
-    TOPIC_RESOLUTION_DECIDED,
-    TOPIC_RESPONSE_DRAFTED,
-    TOPIC_RISK_RESULT,
-)
 from tests.integration.fixtures.workflow_scenarios.schema import (
     SILENT,
     ExpectedEvent,

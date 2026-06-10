@@ -7,8 +7,6 @@ import uuid
 from datetime import UTC, datetime
 from uuid import UUID
 
-import pytest
-
 from agent_foundation.envelope import EventEnvelope
 from packages.contracts.topics import (
     TOPIC_BILLING_RESULT,
@@ -19,7 +17,7 @@ from packages.contracts.topics import (
     TOPIC_RISK_RESULT,
     endpoint_topic,
 )
-from packages.testing.audit_timeline import AuditTimelineBuilder, TimelineEntry
+from packages.testing.audit_timeline import AuditTimelineBuilder
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -187,9 +185,7 @@ class TestAuditTimelineBuilderBuild:
         import asyncio
 
         all_envelopes = envelopes_a + envelopes_b
-        collected_a = asyncio.run(
-            builder.collect(cid_a, envelopes=all_envelopes)
-        )
+        collected_a = asyncio.run(builder.collect(cid_a, envelopes=all_envelopes))
         assert all(e.correlation_id == cid_a for e in collected_a)
         assert len(collected_a) == len(envelopes_a)
 

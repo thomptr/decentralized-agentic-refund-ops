@@ -13,7 +13,6 @@ from packages.contracts.events.payloads import ResolutionOutcome
 from packages.contracts.topics import (
     TOPIC_ISSUE_CLASSIFIED,
     TOPIC_RESOLUTION_DECIDED,
-    TOPIC_RESPONSE_DRAFTED,
     topic_for,
 )
 from packages.testing.workflow_harness import WorkflowHarness
@@ -84,7 +83,7 @@ class TestCollectEvents:
         cid_b = uuid4()
         cid_c = uuid4()
 
-        for i in range(3):
+        for _ in range(3):
             e = _make_envelope(TOPIC_ISSUE_CLASSIFIED, cid_a, causation_id=uuid4())
             _inject(harness, (e))
 
@@ -156,8 +155,12 @@ class TestWaitForEvents:
 
         async def _deliver_late() -> None:
             await asyncio.sleep(0.05)
-            env = _make_envelope(TOPIC_RESOLUTION_DECIDED, cid, causation_id=uuid4(),
-                                 payload={"outcome": "approve_refund"})
+            env = _make_envelope(
+                TOPIC_RESOLUTION_DECIDED,
+                cid,
+                causation_id=uuid4(),
+                payload={"outcome": "approve_refund"},
+            )
             await harness._handle_envelope(env)
 
         asyncio.create_task(_deliver_late())
@@ -177,8 +180,12 @@ class TestAssertCausalOrder:
 
         root = _make_envelope(_TICKET_CREATED_TOPIC, cid)
         child = _make_envelope(TOPIC_ISSUE_CLASSIFIED, cid, causation_id=root.event_id)
-        grandchild = _make_envelope(TOPIC_RESOLUTION_DECIDED, cid, causation_id=child.event_id,
-                                    payload={"outcome": "approve_refund"})
+        grandchild = _make_envelope(
+            TOPIC_RESOLUTION_DECIDED,
+            cid,
+            causation_id=child.event_id,
+            payload={"outcome": "approve_refund"},
+        )
 
         _inject(harness, (root))
         _inject(harness, (child))

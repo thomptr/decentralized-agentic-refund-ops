@@ -10,9 +10,7 @@ Provides:
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import UUID, uuid4
 
 import pytest
 
@@ -77,7 +75,11 @@ async def _run_billing_agent(
     from agent_foundation.runtime import AgentRuntime
     from agent_foundation.transport.publisher import Publisher
     from apps.agents.billing_entitlement.identity import build_agent_card, build_identity
-    from apps.agents.billing_entitlement.service import analyze, build_a2a_output, build_result_payload
+    from apps.agents.billing_entitlement.service import (
+        analyze,
+        build_a2a_output,
+        build_result_payload,
+    )
     from packages.contracts.topics import TOPIC_BILLING_RESULT
 
     silent = silent_customers if silent_customers is not None else set()
@@ -233,14 +235,8 @@ async def multi_agent_harness(kafka_bootstrap_servers: str) -> MultiAgentHarness
 
     stop_event = asyncio.Event()
 
-    # Use unique consumer group suffix to avoid cross-test state leakage
-    suffix = uuid4().hex[:8]
-
-    # Patch consumer group IDs in the resolution agent to be unique per test
-    import apps.agents.customer_resolution.config as _cfg
-    original_agent_id = _cfg.AGENT_ID
-    # Note: we can't change AGENT_ID as it affects the A2A endpoint topic.
-    # Instead, we rely on the existing group IDs being unique per Kafka consumer group.
+    # Note: AGENT_ID is not patched per-test (it defines the A2A endpoint topic);
+    # cross-test isolation relies on unique Kafka consumer group IDs instead.
 
     # Shared (by reference) silent-customer sets — the harness mutates them via
     # mark_*_silent and the in-process agent runners read them at request time.

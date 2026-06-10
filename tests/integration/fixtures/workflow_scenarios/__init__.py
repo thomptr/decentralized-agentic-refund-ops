@@ -77,9 +77,7 @@ def get_scenario(name: str) -> WorkflowScenario:
     try:
         return ALL_SCENARIOS[name]
     except KeyError:
-        raise KeyError(
-            f"Unknown scenario {name!r}. Available: {sorted(ALL_SCENARIOS)}"
-        ) from None
+        raise KeyError(f"Unknown scenario {name!r}. Available: {sorted(ALL_SCENARIOS)}") from None
 
 
 __all__ = [

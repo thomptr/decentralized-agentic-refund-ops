@@ -19,9 +19,6 @@ import structlog
 from agent_foundation.audit.store import write_audit, write_task_audit
 from agent_foundation.envelope import EventEnvelope
 from agent_foundation.transport.publisher import Publisher
-from apps.agents.customer_resolution.config import (
-    DELEGATION_TIMEOUT_SECONDS,
-)
 from apps.agents.customer_resolution.decision_engine import (
     decide,
     requires_human_approval,

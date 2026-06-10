@@ -12,7 +12,7 @@ import asyncio
 import uuid
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -163,7 +163,7 @@ async def test_reaper_does_not_escalate_future_deadline():
     """A case whose deadline is in the future is not touched."""
     store = _make_store()
     future = datetime(2099, 1, 1, tzinfo=UTC)
-    case = await _create_and_register_case(store, deadline=future)
+    await _create_and_register_case(store, deadline=future)
 
     stop_event = asyncio.Event()
     apply_calls: list[Any] = []

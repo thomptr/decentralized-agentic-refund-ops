@@ -14,9 +14,8 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
-from packages.contracts.events.payloads import ResolutionOutcome
-
 from apps.agents.customer_resolution.models import CaseStatus
+from packages.contracts.events.payloads import ResolutionOutcome
 
 
 class _SilentSentinel:

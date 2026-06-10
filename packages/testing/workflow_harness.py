@@ -92,7 +92,7 @@ class WorkflowHarness:
         if self._consumer_task is not None:
             try:
                 await asyncio.wait_for(self._consumer_task, timeout=5.0)
-            except (asyncio.TimeoutError, TimeoutError, asyncio.CancelledError, Exception):
+            except (TimeoutError, asyncio.CancelledError, Exception):
                 self._consumer_task.cancel()
 
     # ------------------------------------------------------------------
@@ -142,7 +142,7 @@ class WorkflowHarness:
         *,
         timeout: float = 30.0,
     ) -> list[EventEnvelope]:
-        """Wait until all expected_types are seen for correlation_id; raise TimeoutError on expiry."""
+        """Wait until all expected_types are seen for correlation_id; raise TimeoutError if not."""
         deadline = asyncio.get_event_loop().time() + timeout
         while True:
             seen = {e.event_type for e in self._buffer[correlation_id]}
@@ -168,9 +168,7 @@ class WorkflowHarness:
         timeout: float = 30.0,
     ) -> dict[str, Any]:
         """Wait for TOPIC_RESOLUTION_DECIDED and return its payload dict."""
-        await self.wait_for_events(
-            correlation_id, [TOPIC_RESOLUTION_DECIDED], timeout=timeout
-        )
+        await self.wait_for_events(correlation_id, [TOPIC_RESOLUTION_DECIDED], timeout=timeout)
         for env in self._buffer[correlation_id]:
             if env.event_type == TOPIC_RESOLUTION_DECIDED:
                 return dict(env.payload)
@@ -255,13 +253,13 @@ class WorkflowHarness:
         except ValueError:
             raise AssertionError(
                 f"Event type {earlier_type!r} not found in events for {correlation_id}"
-            )
+            ) from None
         try:
             later_idx = types_in_order.index(later_type)
         except ValueError:
             raise AssertionError(
                 f"Event type {later_type!r} not found in events for {correlation_id}"
-            )
+            ) from None
         assert earlier_idx < later_idx, (
             f"Expected {earlier_type!r} (index {earlier_idx}) before "
             f"{later_type!r} (index {later_idx})"

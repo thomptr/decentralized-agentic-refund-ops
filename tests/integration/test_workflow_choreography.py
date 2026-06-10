@@ -22,7 +22,7 @@ import pytest
 from apps.agents.billing_entitlement.mock_data import _DATASET as _billing_dataset
 from apps.agents.customer_resolution.models import CaseStatus
 from apps.agents.risk_fraud.mock_data import _DATASET as _risk_dataset
-from packages.contracts.events.payloads import CustomerResponseDecisionPayload, ResolutionOutcome
+from packages.contracts.events.payloads import ResolutionOutcome
 from packages.contracts.topics import (
     TOPIC_BILLING_RESULT,
     TOPIC_ISSUE_CLASSIFIED,
@@ -34,7 +34,6 @@ from packages.contracts.topics import (
 from packages.testing.workflow_harness import WorkflowHarness
 from tests.integration.conftest import MultiAgentHarness
 from tests.integration.fixtures.workflow_scenarios import get_scenario
-from tests.integration.fixtures.workflow_scenarios.builders import make_support_ticket
 from tests.integration.fixtures.workflow_scenarios.schema import SILENT, ExpectedFinalState
 
 pytestmark = pytest.mark.integration
@@ -301,12 +300,8 @@ async def test_out_of_order_results(
     )
     assert decided_idx is not None, "No resolution decided event"
 
-    billing_idx = next(
-        (i for i, et in enumerate(event_types) if et == TOPIC_BILLING_RESULT), None
-    )
-    risk_idx = next(
-        (i for i, et in enumerate(event_types) if et == TOPIC_RISK_RESULT), None
-    )
+    billing_idx = next((i for i, et in enumerate(event_types) if et == TOPIC_BILLING_RESULT), None)
+    risk_idx = next((i for i, et in enumerate(event_types) if et == TOPIC_RISK_RESULT), None)
     assert billing_idx is not None, "No billing result event"
     assert risk_idx is not None, "No risk result event"
     assert billing_idx < decided_idx, "Billing result must arrive before decision"
@@ -347,10 +342,7 @@ async def test_concurrent_cases_no_cross_bleed(
 
         # Wait for all decisions concurrently
         await asyncio.gather(
-            *[
-                wh.wait_for_decision(correlation_ids[suffix], timeout=30)
-                for suffix, *_ in cases
-            ]
+            *[wh.wait_for_decision(correlation_ids[suffix], timeout=30) for suffix, *_ in cases]
         )
 
         for suffix, _billing_key, _risk_key, expected_outcome in cases:
@@ -359,13 +351,11 @@ async def test_concurrent_cases_no_cross_bleed(
                 e for e in wh.collect_events(cid) if e.event_type == TOPIC_RESOLUTION_DECIDED
             ]
             assert len(decided_events) == 1, (
-                f"Case {suffix}: expected exactly 1 decided event, "
-                f"got {len(decided_events)}"
+                f"Case {suffix}: expected exactly 1 decided event, got {len(decided_events)}"
             )
             actual_outcome = decided_events[0].payload.get("outcome")
             assert actual_outcome == expected_outcome.value, (
-                f"Case {suffix}: expected {expected_outcome.value!r}, "
-                f"got {actual_outcome!r}"
+                f"Case {suffix}: expected {expected_outcome.value!r}, got {actual_outcome!r}"
             )
 
 
@@ -520,12 +510,9 @@ async def test_eligible_high_risk_conflict(
         decision = await wh.wait_for_decision(correlation_id, timeout=30)
 
     assert decision.get("outcome") == ResolutionOutcome.ESCALATE_HUMAN.value, (
-        f"Expected escalate_human for eligible+high-risk conflict, "
-        f"got {decision.get('outcome')!r}"
+        f"Expected escalate_human for eligible+high-risk conflict, got {decision.get('outcome')!r}"
     )
-    assert decision.get("escalation_reason") is not None, (
-        "Expected escalation_reason to be set"
-    )
+    assert decision.get("escalation_reason") is not None, "Expected escalation_reason to be set"
 
 
 @pytest.mark.asyncio
@@ -555,10 +542,7 @@ async def test_ineligible_high_risk_deny_with_flag(
     assert outcome in (
         ResolutionOutcome.DENY_REFUND.value,
         ResolutionOutcome.ESCALATE_HUMAN.value,
-    ), (
-        f"Expected deny_refund or escalate_human for ineligible+high-risk, "
-        f"got {outcome!r}"
-    )
+    ), f"Expected deny_refund or escalate_human for ineligible+high-risk, got {outcome!r}"
     # Approval must never happen when both signals are adverse
     assert outcome != ResolutionOutcome.APPROVE_REFUND.value
 
@@ -648,8 +632,7 @@ async def test_duplicate_events_no_side_effects(
         ]
 
     assert len(decided_events) == 1, (
-        f"Expected exactly 1 decided event after duplicate ticket, "
-        f"got {len(decided_events)}"
+        f"Expected exactly 1 decided event after duplicate ticket, got {len(decided_events)}"
     )
 
 
@@ -722,9 +705,7 @@ async def test_partial_replay_no_spurious_decision(
         await asyncio.sleep(2.0)
 
         decided_after_first_run = [
-            e
-            for e in wh.collect_events(correlation_id)
-            if e.event_type == TOPIC_RESOLUTION_DECIDED
+            e for e in wh.collect_events(correlation_id) if e.event_type == TOPIC_RESOLUTION_DECIDED
         ]
 
     assert len(decided_after_first_run) == 1, (
@@ -777,14 +758,10 @@ async def test_trace_reconstructs_full_chain(
 
     builder = AuditTimelineBuilder()
     # Inject collected envelopes directly (avoids a second Kafka consumer)
-    envelopes = await builder.collect(
-        correlation_id, envelopes=collected_envelopes
-    )
+    envelopes = await builder.collect(correlation_id, envelopes=collected_envelopes)
     timeline = builder.build(envelopes)
 
-    assert len(timeline) >= 5, (
-        f"Expected at least 5 timeline entries, got {len(timeline)}"
-    )
+    assert len(timeline) >= 5, f"Expected at least 5 timeline entries, got {len(timeline)}"
 
     labels = [entry.label for entry in timeline]
 
@@ -798,9 +775,7 @@ async def test_trace_reconstructs_full_chain(
     assert any("risk" in lbl or "review.completed" in lbl for lbl in labels), (
         f"Missing risk-result entry in timeline: {labels}"
     )
-    assert any("decided" in lbl for lbl in labels), (
-        f"Missing decided entry in timeline: {labels}"
-    )
+    assert any("decided" in lbl for lbl in labels), f"Missing decided entry in timeline: {labels}"
 
     # The last entry must be the synthetic terminal (case.closed or case.escalated)
     terminal = timeline[-1]
@@ -927,12 +902,8 @@ async def test_decision_emerges_from_peer_events(
     assert risk_idx is not None, "No risk result in event log"
     assert decided_idx is not None, "No decided event in event log"
 
-    assert billing_idx < decided_idx, (
-        "Billing result must precede the decision in arrival order"
-    )
-    assert risk_idx < decided_idx, (
-        "Risk result must precede the decision in arrival order"
-    )
+    assert billing_idx < decided_idx, "Billing result must precede the decision in arrival order"
+    assert risk_idx < decided_idx, "Risk result must precede the decision in arrival order"
 
 
 # ---------------------------------------------------------------------------
@@ -970,6 +941,4 @@ async def test_demo_happy_path_completes_within_30s(
         )
         elapsed = time.monotonic() - start
 
-    assert elapsed < 30.0, (
-        f"Demo happy path took {elapsed:.1f}s — exceeded 30-second SLA"
-    )
+    assert elapsed < 30.0, f"Demo happy path took {elapsed:.1f}s — exceeded 30-second SLA"
