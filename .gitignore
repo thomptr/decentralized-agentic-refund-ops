@@ -36,6 +36,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+# AgentCore local config (contains broker URL — not for version control)
+apps/agents/billing_entitlement/agentcore/.env.local
 
 # macOS
 .DS_Store

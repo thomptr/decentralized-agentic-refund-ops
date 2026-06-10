@@ -14,6 +14,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# HTTP surface for local AgentCore CLI — not required for the Kafka domain agent
+http = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
@@ -29,6 +35,7 @@ dev = [
 agent-foundation = "agent_foundation.cli:app"
 demo-customer-resolution = "apps.agents.customer_resolution.main:main"
 demo-billing-entitlement = "apps.agents.billing_entitlement.main:main"
+demo-billing-entitlement-http = "apps.agents.billing_entitlement.http_app:run"
 demo-risk-fraud = "apps.agents.risk_fraud.main:main"
 
 [tool.hatch.build.targets.wheel]

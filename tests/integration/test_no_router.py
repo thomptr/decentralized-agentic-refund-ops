@@ -28,8 +28,17 @@ def _load_source(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+_VENDORED_PARTS = frozenset({".venv", "venv", "site-packages", "node_modules"})
+
+
+def _is_vendored(path: Path) -> bool:
+    """True if the path lives inside a virtualenv or vendored dependency tree."""
+    return any(part in _VENDORED_PARTS for part in path.parts)
+
+
 def _get_agent_files() -> list[Path]:
-    return list(AGENTS_DIR.glob("**/main.py")) + [AGENTS_DIR / "common.py"]
+    main_files = [p for p in AGENTS_DIR.glob("**/main.py") if not _is_vendored(p)]
+    return main_files + [AGENTS_DIR / "common.py"]
 
 
 def test_no_router_import_in_agent_files() -> None:

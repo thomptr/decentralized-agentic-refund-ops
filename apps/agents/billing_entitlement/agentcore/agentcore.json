@@ -1,0 +1,19 @@
+{
+  "name": "BillingEntitlement",
+  "version": 1,
+  "runtimes": [
+    {
+      "name": "BillingEntitlement",
+      "build": "CodeZip",
+      "entrypoint": "main.py",
+      "codeLocation": "app/BillingEntitlement/",
+      "runtimeVersion": "PYTHON_3_12",
+      "networkMode": "PUBLIC",
+      "protocol": "A2A"
+    }
+  ],
+  "memories": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": []
+}
