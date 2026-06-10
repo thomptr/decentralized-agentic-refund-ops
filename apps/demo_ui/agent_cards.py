@@ -156,9 +156,7 @@ def build_roster(broker_url: str = config.BROKER_URL) -> list[RosterEntry]:
     than an exception (FR-016).
     """
     try:
-        cards = config.run_async(
-            discover_agents(broker_url), timeout=config.READ_TIMEOUT_SECONDS
-        )
+        cards = config.run_async(discover_agents(broker_url), timeout=config.READ_TIMEOUT_SECONDS)
     except Exception:
         cards = []
     try:
