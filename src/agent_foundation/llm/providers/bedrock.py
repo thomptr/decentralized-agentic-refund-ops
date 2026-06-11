@@ -24,8 +24,8 @@ def create_bedrock_client(config: Any) -> Any:
     No explicit credential kwargs — boto3 resolves the default provider chain.
     """
     try:
-        import boto3  # type: ignore[import-untyped]
-        import botocore.config  # type: ignore[import-untyped]
+        import boto3
+        import botocore.config
     except ImportError as exc:
         raise ProviderError(
             "boto3 is required for the Bedrock provider. Install with: pip install -e '.[llm]'"
@@ -54,7 +54,7 @@ def create_bedrock_client(config: Any) -> Any:
 
 def _check_credentials_error(exc: Exception) -> None:
     try:
-        from botocore.exceptions import (  # type: ignore[import-untyped]
+        from botocore.exceptions import (
             NoCredentialsError,
             NoRegionError,
             ProfileNotFound,

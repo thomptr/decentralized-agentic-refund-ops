@@ -77,3 +77,10 @@ ignore = ["B008"]
 [tool.mypy]
 strict = true
 python_version = "3.12"
+
+# boto3/botocore live in the optional `llm` extra, so they are absent from the
+# `dev` install used in CI. Ignore missing imports here rather than per-line so
+# the check passes whether or not the SDK happens to be installed.
+[[tool.mypy.overrides]]
+module = ["boto3.*", "botocore.*"]
+ignore_missing_imports = true
