@@ -1,4 +1,4 @@
-﻿"""Case timeline view — User Story 2 (T012, T013).
+"""Case timeline view — User Story 2 (T012, T013).
 
 For a ``correlation_id``, renders the full causal timeline (reusing ``trace_case``
 so the UI matches the CLI), each row attributed with actor / event type / outcome /
@@ -17,7 +17,7 @@ from uuid import UUID
 import streamlit as st
 
 from apps.demo_ui import config
-from apps.demo_ui.reasoning_summary import format_reasoning_step, redact_text
+from apps.demo_ui.reasoning_summary import format_reasoning_step
 from apps.demo_ui.timeline import TimelineView, build_timeline
 
 _FAILURE_OUTCOMES = {"failed", "rejected"}
@@ -33,17 +33,19 @@ def _extract_reasoning_records(view: TimelineView) -> list[dict]:
         if e.event_type == _REASONING_EVENT_TYPE:
             # The payload is embedded in the audit envelope; we surface
             # what trace_case already extracted as the entry's attributes.
-            records.append({
-                "agent_id": e.actor,
-                "task_kind": e.outcome or "unknown",
-                "reasoning_path": "—",
-                "outcome": e.outcome or "—",
-                "latency_ms": 0,
-                "model_id": "—",
-                "cache_hit": False,
-                "token_usage": None,
-                "result_summary": {},
-            })
+            records.append(
+                {
+                    "agent_id": e.actor,
+                    "task_kind": e.outcome or "unknown",
+                    "reasoning_path": "—",
+                    "outcome": e.outcome or "—",
+                    "latency_ms": 0,
+                    "model_id": "—",
+                    "cache_hit": False,
+                    "token_usage": None,
+                    "result_summary": {},
+                }
+            )
     return records
 
 
@@ -53,15 +55,10 @@ def _render_timeline(view: TimelineView) -> None:
         return
 
     rows = []
-    reasoning_records = []
     for e in view.entries:
         label = e.event_type
         if e.is_orphan:
             label += "  orphan (parent not found)"
-
-        # Collect reasoning entries for the separate section.
-        if e.event_type == _REASONING_EVENT_TYPE:
-            reasoning_records.append(e)
 
         rows.append(
             {
@@ -81,20 +78,14 @@ def _render_timeline(view: TimelineView) -> None:
         st.error(f"Step {e.seq} `{e.event_type}` {e.outcome}: {e.reason or '(no reason given)'}")
 
     # Reasoning-step summary section.
+    reasoning_records = _extract_reasoning_records(view)
     if reasoning_records:
         with st.expander(f"LLM reasoning steps ({len(reasoning_records)})", expanded=False):
             st.caption(
                 "Assistive LLM summaries only -- binding decisions come from "
                 "deterministic engines. PII is redacted before display."
             )
-            reasoning_rows = []
-            for e in reasoning_records:
-                reasoning_rows.append({
-                    "agent": e.actor,
-                    "task": e.outcome or "—",
-                    "timestamp": e.timestamp.isoformat(),
-                    "caused_by": str(e.caused_by) if e.caused_by else "—",
-                })
+            reasoning_rows = [format_reasoning_step(rec) for rec in reasoning_records]
             st.dataframe(reasoning_rows, width="stretch", hide_index=True)
 
 

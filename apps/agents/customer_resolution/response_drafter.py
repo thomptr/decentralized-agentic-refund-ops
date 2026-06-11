@@ -327,6 +327,7 @@ async def draft_with_llm(
     # Safety net: deterministic fallback
     return _fallback()
 
+
 # Avoid circular imports at module level — import CustomerResponseDecisionPayload lazily.
 # These type hints are used by build_response_drafted_payload above.
 try:

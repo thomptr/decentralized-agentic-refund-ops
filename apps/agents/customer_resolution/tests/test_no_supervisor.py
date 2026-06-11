@@ -17,8 +17,21 @@ _FORBIDDEN_CAPABILITY_NAMES = {
 }
 
 
+_EXCLUDED_DIRS = {
+    "tests",
+    ".venv",
+    "venv",
+    "site-packages",
+    "node_modules",
+    "__pycache__",
+    ".tox",
+    "build",
+    "dist",
+}
+
+
 def _python_files() -> list[Path]:
-    return [f for f in _AGENT_PACKAGE.rglob("*.py") if "tests" not in f.parts]
+    return [f for f in _AGENT_PACKAGE.rglob("*.py") if not (_EXCLUDED_DIRS & set(f.parts))]
 
 
 def test_no_router_or_supervisor_in_capabilities():

@@ -90,9 +90,7 @@ async def test_draft_with_llm_fallback_matches_deterministic():
     tone = ToneConfig()
     outcome = ResolutionOutcome.APPROVE_REFUND
 
-    draft = await draft_with_llm(
-        outcome, facts, tone, runtime, ticket_summary="test"
-    )
+    draft = await draft_with_llm(outcome, facts, tone, runtime, ticket_summary="test")
     det_draft = draft_structured_response("test", outcome, facts, tone)
 
     # Body content should match the deterministic template
@@ -106,9 +104,7 @@ async def test_draft_with_llm_fallback_for_each_outcome():
     facts = _allowed_facts()
 
     for outcome in ResolutionOutcome:
-        draft = await draft_with_llm(
-            outcome, facts, ToneConfig(), runtime, ticket_summary="test"
-        )
+        draft = await draft_with_llm(outcome, facts, ToneConfig(), runtime, ticket_summary="test")
         assert isinstance(draft, ResponseDraft)
         assert draft.requires_human_approval is True
         assert len(draft.body) > 0

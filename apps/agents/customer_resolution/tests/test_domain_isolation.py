@@ -36,10 +36,23 @@ _FORBIDDEN_NAMES = {
 }
 
 
+_EXCLUDED_DIRS = {
+    "tests",
+    ".venv",
+    "venv",
+    "site-packages",
+    "node_modules",
+    "__pycache__",
+    ".tox",
+    "build",
+    "dist",
+}
+
+
 def _python_files() -> list[Path]:
     files = []
     for f in _AGENT_PACKAGE.rglob("*.py"):
-        if "tests" in f.parts:
+        if _EXCLUDED_DIRS & set(f.parts):
             continue
         files.append(f)
     return files
