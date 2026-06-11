@@ -168,6 +168,9 @@ class BillingRefundAnalysisCompletedPayload(BaseModel):
     usage_level: str = "unknown"
     refund_window_status: str = "unknown"
     eligible_refund_amount: Decimal = Decimal("0.00")
+    # LLM-enriched fields (008 — assistive only, default None when LLM disabled)
+    enriched_reasoning_summary: str | None = None
+    evidence_explanation: str | None = None
 
 
 class RiskReviewCompletedPayload(BaseModel):
@@ -179,6 +182,9 @@ class RiskReviewCompletedPayload(BaseModel):
     evidence: list[EvidenceItem]
     reasoning_summary: str
     requires_human_review: bool
+    # LLM-enriched fields (008 — assistive only, default None when LLM disabled)
+    enriched_reasoning_summary: str | None = None
+    evidence_explanation: str | None = None
 
 
 class AgentTaskAcceptedPayload(BaseModel):

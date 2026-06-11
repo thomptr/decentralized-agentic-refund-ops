@@ -1,4 +1,4 @@
-# Demo UI — A2A Card & Audit Aggregator
+﻿# Demo UI — A2A Card & Audit Aggregator
 
 A **read-only** Streamlit dashboard that makes the decentralized RefundOps system
 observable without code inspection or broker tailing. It is an *observer*: it never
@@ -78,3 +78,25 @@ apps/demo_ui/
 
 Tests: `tests/unit/demo_ui/` (no broker required) and
 `tests/integration/demo_ui/` (`-m integration`, testcontainers Kafka).
+
+
+## LLM Reasoning Display
+
+When the LLM runtime is active (feature 008), reasoning audit records appear in
+the case timeline as `agent.llm.reasoning.v1` entries. The UI surfaces these in a
+separate "LLM reasoning steps" expander below the causal timeline table.
+
+The UI shows **only safe, redacted LLM summaries**:
+
+- Task kind (classify, draft_response, summarize_reasoning)
+- Agent identity and timestamp
+- Reasoning path (model / cache / fallback)
+- No raw prompts, full model output, or PII are ever displayed
+
+The `reasoning_summary.py` module applies a defensive `redact_text` guard before
+any LLM-derived text reaches the Streamlit display layer, even if the upstream
+audit record was written with `REDACT_PII=false`.
+
+This is consistent with the UI's read-only observer guarantee: it displays
+recorded assistive summaries but never re-derives a decision or shows binding
+verdict logic.

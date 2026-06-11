@@ -47,5 +47,10 @@ TOPIC_RISK_RESULT: str = topic_for("risk", "review", "completed")
 TOPIC_RESPONSE_DRAFTED: str = topic_for("resolution", "customer-response", "drafted")
 
 
+# Feature 008: LLM audit event topics (opt-in, observability-only)
+TOPIC_LLM_INVOCATION_COMPLETED: str = topic_for("audit", "llm.invocation", "completed")
+TOPIC_LLM_INVOCATION_FAILED: str = topic_for("audit", "llm.invocation", "failed")
+
+
 def endpoint_topic(agent_id: str) -> str:
     return topic_for("agent", agent_id, "task.requested")

@@ -13,12 +13,6 @@ from apps.demo_ui import config
 from apps.demo_ui.event_stream import StreamView, build_stream
 
 
-def _open_case(correlation_id: str) -> None:
-    st.query_params["case"] = correlation_id
-    st.query_params["view"] = "case"
-    st.rerun()
-
-
 def _render_stream(view: StreamView) -> None:
     if not view.events:
         st.info("No audit events match the current filters.")
@@ -30,12 +24,13 @@ def _render_stream(view: StreamView) -> None:
         cols[1].markdown(f"`{e.event_type}`")
         cols[2].markdown(e.outcome or "—")
         cols[3].caption(f"{e.timestamp.isoformat()} · case `{str(e.correlation_id)[:8]}…`")
-        cols[4].button(
-            "open",
-            key=f"open-{e.event_id}",
-            on_click=_open_case,
-            args=(str(e.correlation_id),),
-        )
+        # Handle the click inline (not via on_click): a callback may not call
+        # st.rerun(), and this button lives inside a fragment, so navigating to the
+        # case view requires an app-scoped rerun for app.py to re-dispatch.
+        if cols[4].button("open", key=f"open-{e.event_id}"):
+            st.query_params["case"] = str(e.correlation_id)
+            st.query_params["view"] = "case"
+            st.rerun(scope="app")
 
 
 @st.fragment(run_every=config.REFRESH_SECONDS)

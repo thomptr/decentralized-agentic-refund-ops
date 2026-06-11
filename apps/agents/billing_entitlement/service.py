@@ -7,6 +7,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+# Conditional import — only used when LLM enrichment is enabled
+from typing import TYPE_CHECKING
+
 from agent_foundation.a2a import A2AMessage, A2APart
 from apps.agents.billing_entitlement.mock_data import load_facts
 from apps.agents.billing_entitlement.models import (
@@ -18,6 +21,9 @@ from apps.agents.billing_entitlement.models import (
 from apps.agents.billing_entitlement.policy import REFUND_POLICY
 from apps.agents.billing_entitlement.rules_engine import evaluate
 from packages.contracts.events.payloads import BillingRefundAnalysisCompletedPayload, EvidenceItem
+
+if TYPE_CHECKING:
+    from apps.agents.billing_entitlement.llm_summary import BillingNarrative
 
 
 def validate_input(parts: list) -> RefundEligibilityRequest:
@@ -81,6 +87,8 @@ def build_result_payload(
     request: RefundEligibilityRequest,
     rec: EligibilityRecommendation,
     facts: BillingFacts | None,
+    *,
+    narrative: BillingNarrative | None = None,
 ) -> BillingRefundAnalysisCompletedPayload:
     """Map recommendation + facts + request → expanded result event payload (T014)."""
     return BillingRefundAnalysisCompletedPayload(
@@ -104,23 +112,32 @@ def build_result_payload(
         reasoning_summary=rec.reasoning_summary,
         requires_human_review=rec.requires_human_review,
         eligible_refund_amount=rec.eligible_refund_amount,
+        enriched_reasoning_summary=(narrative.polished_summary if narrative is not None else None),
+        evidence_explanation=(narrative.evidence_explanation if narrative is not None else None),
     )
 
 
-def build_a2a_output(rec: EligibilityRecommendation) -> A2AMessage:
-    """Build the A2A output message from a recommendation (consumed by 003)."""
+def build_a2a_output(
+    rec: EligibilityRecommendation,
+    *,
+    narrative: BillingNarrative | None = None,
+) -> A2AMessage:
+    """Build the A2A output message from a recommendation (consumed by 003).
+
+    When ``narrative`` is provided (LLM enrichment enabled), enriched text fields are included.
+    Binding fields are ALWAYS from the deterministic recommendation.
+    """
+    data: dict = {
+        "recommendation": str(rec.recommendation),
+        "confidence": rec.confidence,
+        "evidence": [e.model_dump() for e in rec.evidence],
+        "reasoning_summary": rec.reasoning_summary,
+        "requires_human_review": rec.requires_human_review,
+    }
+    if narrative is not None:
+        data["enriched_reasoning_summary"] = narrative.polished_summary
+        data["evidence_explanation"] = narrative.evidence_explanation
     return A2AMessage(
         role="agent",
-        parts=[
-            A2APart(
-                type="data",
-                data={
-                    "recommendation": str(rec.recommendation),
-                    "confidence": rec.confidence,
-                    "evidence": [e.model_dump() for e in rec.evidence],
-                    "reasoning_summary": rec.reasoning_summary,
-                    "requires_human_review": rec.requires_human_review,
-                },
-            )
-        ],
+        parts=[A2APart(type="data", data=data)],
     )

@@ -41,6 +41,7 @@ from apps.agents.customer_resolution.state_store import (
 from apps.agents.customer_resolution.ticket_classifier import (
     build_issue_classified_payload,
     classify,
+    classify_with_llm,
 )
 from packages.contracts.events.payloads import (
     BillingRefundAnalysisCompletedPayload,
@@ -302,8 +303,25 @@ async def intake_handler(
         await write_audit(publisher, envelope, "duplicate_skipped", "already_processed")
         return
 
-    # Classify
-    triage = classify(ticket)
+    # Classify (LLM-assisted when CRA_LLM_ENABLED, else deterministic)
+    from apps.agents.customer_resolution.config import CRA_LLM_ENABLED
+
+    if CRA_LLM_ENABLED:
+        try:
+            from agent_foundation.llm import build_runtime
+
+            _llm_runtime = build_runtime()
+            triage = await classify_with_llm(
+                ticket,
+                _llm_runtime,
+                correlation_id=envelope.correlation_id,
+                causation_id=envelope.event_id,
+            )
+        except Exception:
+            logger.warning("classify_with_llm_failed", case_id=str(case_id))
+            triage = classify(ticket)
+    else:
+        triage = classify(ticket)
     case.triage = triage
     case.status = CaseStatus.CLASSIFIED
     await store.save(case)

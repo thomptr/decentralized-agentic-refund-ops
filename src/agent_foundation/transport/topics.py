@@ -7,6 +7,8 @@ from packages.contracts.topics import (
     TOPIC_AUDIT,
     TOPIC_BILLING_RESULT,
     TOPIC_ISSUE_CLASSIFIED,
+    TOPIC_LLM_INVOCATION_COMPLETED,
+    TOPIC_LLM_INVOCATION_FAILED,
     TOPIC_MESSAGE,
     TOPIC_REFUND_REVIEW_REQUESTED,
     TOPIC_RESOLUTION_DECIDED,
@@ -44,6 +46,9 @@ TOPIC_NAMES: dict[str, str] = {
     TOPIC_BILLING_RESULT: TOPIC_BILLING_RESULT,
     TOPIC_RISK_RESULT: TOPIC_RISK_RESULT,
     TOPIC_RESPONSE_DRAFTED: TOPIC_RESPONSE_DRAFTED,
+    # Feature 008: LLM audit event topics (opt-in, observability-only)
+    TOPIC_LLM_INVOCATION_COMPLETED: TOPIC_LLM_INVOCATION_COMPLETED,
+    TOPIC_LLM_INVOCATION_FAILED: TOPIC_LLM_INVOCATION_FAILED,
 }
 
 _ONE_DAY_MS = 86_400_000
@@ -116,6 +121,19 @@ _CANONICAL_TOPICS: list[NewTopic] = [
         num_partitions=1,
         replication_factor=1,
         topic_configs={"retention.ms": str(_SEVEN_DAYS_MS)},
+    ),
+    # Feature 008: LLM audit event topics (opt-in, observability-only)
+    NewTopic(
+        name=TOPIC_LLM_INVOCATION_COMPLETED,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"cleanup.policy": "compact"},
+    ),
+    NewTopic(
+        name=TOPIC_LLM_INVOCATION_FAILED,
+        num_partitions=1,
+        replication_factor=1,
+        topic_configs={"cleanup.policy": "compact"},
     ),
 ]
 

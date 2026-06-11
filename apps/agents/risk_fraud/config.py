@@ -31,6 +31,13 @@ TENANT_ID: str = "poc"
 AUTH_MODE: str = os.environ.get("AUTH_MODE", "none")
 
 # ------------------------------------------------------------------
+# LLM summary enrichment (008 — assistive only, default OFF)
+# ------------------------------------------------------------------
+RISK_LLM_SUMMARY_ENABLED: bool = os.environ.get(
+    "RISK_LLM_SUMMARY_ENABLED", "false"
+).lower().strip() in ("true", "1", "yes")
+
+# ------------------------------------------------------------------
 # Port configuration (env-configurable, distinct ports)
 # ------------------------------------------------------------------
 # A2A HTTP surface (http_app.py / uvicorn) — avoids billing agent's :8080
@@ -65,5 +72,6 @@ __all__ = [
     "AGENT_ENVIRONMENT",
     "RISK_RESULT_TOPIC",
     "AGENT_ENDPOINT_TOPIC",
+    "RISK_LLM_SUMMARY_ENABLED",
     "topic_for",
 ]
