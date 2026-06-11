@@ -243,6 +243,91 @@ def minimize_summary(text: str) -> str:
     return text[:MAX_SUMMARY_LENGTH]
 
 
+# ---------------------------------------------------------------------------
+# LLM-assisted drafting (Phase 008)
+# ---------------------------------------------------------------------------
+
+
+async def draft_with_llm(
+    outcome: ResolutionOutcome,
+    allowed_facts: AllowedFacts,
+    tone_config: ToneConfig | None,
+    runtime: object,
+    *,
+    correlation_id: object = None,
+    causation_id: object = None,
+    ticket_summary: str = "",
+) -> ResponseDraft:
+    """Draft a customer response using the LLM runtime with deterministic fallback.
+
+    When the reasoning path is fallback, requires_human_approval is forced True.
+    The grounding check (_assert_no_internal_leak) runs on the model body before returning.
+    """
+    from uuid import uuid4
+
+    from agent_foundation.llm import ReasoningPath, assist_or_fallback
+    from apps.agents.customer_resolution.config import AGENT_ID
+
+    cid = correlation_id or uuid4()
+    cause = causation_id or uuid4()
+
+    tone = tone_config or DEFAULT_TONE
+
+    def _fallback() -> ResponseDraft:
+        return draft_structured_response(ticket_summary, outcome, allowed_facts, tone)
+
+    result = await assist_or_fallback(
+        runtime,
+        agent_id=AGENT_ID,
+        task_kind="draft_response",
+        correlation_id=cid,
+        causation_id=cause,
+        instructions=(
+            "Draft a customer-facing response for this support case. "
+            "Use ONLY the allowed facts provided. Do NOT reveal internal fields, "
+            "risk scores, confidence values, or evidence details. "
+            "The response must be professional and empathetic."
+        ),
+        grounding_inputs={
+            "outcome": outcome.value,
+            "allowed_facts": allowed_facts.model_dump(mode="json"),
+            "tone": tone.model_dump(mode="json"),
+            "ticket_summary": ticket_summary,
+        },
+        output_schema=ResponseDraft,
+        fallback=_fallback,
+    )
+
+    if isinstance(result.value, ResponseDraft):
+        draft = result.value
+        # Grounding check: reject body that leaks internal fields
+        try:
+            _assert_no_internal_leak(draft.body)
+        except ValueError:
+            # Leaked internal field -- force fallback
+            draft = _fallback()
+            draft = ResponseDraft(
+                subject=draft.subject,
+                body=draft.body,
+                response_type=draft.response_type,
+                requires_human_approval=True,
+            )
+            return draft
+
+        # When reasoning path == fallback, force human approval
+        if result.reasoning_path == ReasoningPath.fallback:
+            draft = ResponseDraft(
+                subject=draft.subject,
+                body=draft.body,
+                response_type=draft.response_type,
+                requires_human_approval=True,
+            )
+        return draft
+
+    # Safety net: deterministic fallback
+    return _fallback()
+
+
 # Avoid circular imports at module level — import CustomerResponseDecisionPayload lazily.
 # These type hints are used by build_response_drafted_payload above.
 try:

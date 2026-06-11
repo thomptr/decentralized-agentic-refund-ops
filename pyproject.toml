@@ -11,6 +11,7 @@ dependencies = [
     "aiokafka>=0.10",
     "structlog>=24",
     "typer>=0.12",
+    "pyyaml>=6",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +26,13 @@ ui = [
     "streamlit>=1.36",
     "httpx>=0.27",
 ]
+llm = [
+    "boto3>=1.34",
+]
+langgraph = [
+    "langgraph>=0.2",
+    "langchain-aws>=0.2",
+]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
@@ -34,6 +42,7 @@ dev = [
     "mypy>=1.10",
     "pip-audit>=2.7",
     "bandit>=1.7",
+    "pyyaml>=6",
 ]
 
 [project.scripts]
@@ -68,3 +77,10 @@ ignore = ["B008"]
 [tool.mypy]
 strict = true
 python_version = "3.12"
+
+# boto3/botocore live in the optional `llm` extra, so they are absent from the
+# `dev` install used in CI. Ignore missing imports here rather than per-line so
+# the check passes whether or not the SDK happens to be installed.
+[[tool.mypy.overrides]]
+module = ["boto3.*", "botocore.*"]
+ignore_missing_imports = true

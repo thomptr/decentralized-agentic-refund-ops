@@ -25,8 +25,11 @@ def main() -> None:
     from agent_foundation.payloads.task import TaskRequest
     from agent_foundation.runtime import AgentRuntime
     from agent_foundation.transport.publisher import Publisher
+    from apps.agents.billing_entitlement.config import BILLING_LLM_SUMMARY_ENABLED
     from apps.agents.common import BROKER_URL
     from packages.contracts.topics import TOPIC_BILLING_RESULT
+
+    _llm_enabled = BILLING_LLM_SUMMARY_ENABLED
 
     identity = build_identity()
     card = build_agent_card()
@@ -52,12 +55,39 @@ def main() -> None:
             evidence_count=len(rec.evidence),
         )
 
+        # --- LLM enrichment (008): optional reasoning-summary polish ---
+        narrative = None
+        if _llm_enabled:
+            try:
+                from agent_foundation.llm import build_runtime as build_llm_runtime
+                from apps.agents.billing_entitlement.llm_summary import enrich_recommendation
+
+                llm_rt = build_llm_runtime()
+                narrative = await enrich_recommendation(
+                    llm_rt,
+                    rec,
+                    request,
+                    causation_id=req.task_id,
+                )
+                log.info(
+                    "llm_enrichment_complete",
+                    task_id=str(req.task_id),
+                    has_narrative=True,
+                )
+            except Exception as exc:
+                log.warning(
+                    "llm_enrichment_failed",
+                    task_id=str(req.task_id),
+                    error=str(exc),
+                )
+                narrative = None
+
         # Build the result payload and publish to TOPIC_BILLING_RESULT (dual-path delivery, T015)
         # The Publisher is opened in the async entrypoint below and captured by this closure.
-        payload = build_result_payload(request, rec, facts)
+        payload = build_result_payload(request, rec, facts, narrative=narrative)
         await _domain_pub.publish(
-            TOPIC_BILLING_RESULT,
-            payload.model_dump(mode="json"),
+            payload,
+            event_type=TOPIC_BILLING_RESULT,
             correlation_id=request.case_id,
             causation_id=req.task_id,
         )
@@ -77,7 +107,7 @@ def main() -> None:
                 reasoning_summary=rec.reasoning_summary,
             )
 
-        return build_a2a_output(rec)
+        return build_a2a_output(rec, narrative=narrative)
 
     # Open a handler-owned Publisher for the domain result event path (research R2/R8)
     import asyncio

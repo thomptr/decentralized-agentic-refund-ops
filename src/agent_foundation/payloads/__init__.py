@@ -3,6 +3,10 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from agent_foundation.a2a import A2AMessage
+from agent_foundation.llm.audit_events import (
+    LlmInvocationCompletedPayload,
+    LlmInvocationFailedPayload,
+)
 from agent_foundation.payloads.sample import AuditPayload, SamplePayload
 from agent_foundation.payloads.support_ticket import SupportTicketCreatedPayload
 from agent_foundation.payloads.task import TaskRequest, TaskResult
@@ -18,6 +22,8 @@ from packages.contracts.events.payloads import (
 from packages.contracts.topics import (
     TOPIC_BILLING_RESULT,
     TOPIC_ISSUE_CLASSIFIED,
+    TOPIC_LLM_INVOCATION_COMPLETED,
+    TOPIC_LLM_INVOCATION_FAILED,
     TOPIC_REFUND_REVIEW_REQUESTED,
     TOPIC_RESOLUTION_DECIDED,
     TOPIC_RESPONSE_DRAFTED,
@@ -43,6 +49,9 @@ PAYLOAD_REGISTRY: dict[str, type[BaseModel]] = {
     TOPIC_BILLING_RESULT: BillingRefundAnalysisCompletedPayload,
     TOPIC_RISK_RESULT: RiskReviewCompletedPayload,
     TOPIC_RESPONSE_DRAFTED: CustomerResponseDraftedPayload,
+    # Feature 008: LLM audit event payloads (opt-in, observability-only)
+    TOPIC_LLM_INVOCATION_COMPLETED: LlmInvocationCompletedPayload,
+    TOPIC_LLM_INVOCATION_FAILED: LlmInvocationFailedPayload,
 }
 
 

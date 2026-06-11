@@ -6,6 +6,9 @@ and the AgentCore/HTTP entrypoint (http_app.py / app/RiskFraud/main.py).
 
 from __future__ import annotations
 
+# Conditional import — only used when LLM enrichment is enabled
+from typing import TYPE_CHECKING
+
 from agent_foundation.a2a import A2AMessage, A2APart
 from apps.agents.risk_fraud.mock_data import load_signals
 from apps.agents.risk_fraud.models import (
@@ -14,6 +17,9 @@ from apps.agents.risk_fraud.models import (
 )
 from apps.agents.risk_fraud.scoring import assess_signals
 from packages.contracts.events.payloads import EvidenceItem, RiskReviewCompletedPayload
+
+if TYPE_CHECKING:
+    from apps.agents.risk_fraud.llm_summary import RiskNarrative
 
 
 def validate_input(parts: list) -> RiskAssessmentRequest:
@@ -75,12 +81,18 @@ def assess(
 def to_result_payload(
     assessment: RiskAssessment,
     request: RiskAssessmentRequest,
+    *,
+    narrative: RiskNarrative | None = None,
 ) -> RiskReviewCompletedPayload:
-    """Map RiskAssessment + request → RiskReviewCompletedPayload (T019).
+    """Map RiskAssessment + request to RiskReviewCompletedPayload (T019).
 
-    The `recommendation` wire field is risk_level.value (SC-009 / R5 — unchanged 003 consumer).
+    The ``recommendation`` wire field is risk_level.value (SC-009 / R5).
     FP-00x policy references are surfaced as EvidenceItems with source="fraud_policy" in the
     assessment.evidence; no dedicated policy_references field on the wire payload (SC-002).
+
+    When ``narrative`` is provided (LLM enrichment enabled), the enriched_reasoning_summary
+    and evidence_explanation text fields are populated. Binding fields (recommendation,
+    confidence, evidence, requires_human_review) are ALWAYS from the deterministic assessment.
     """
     return RiskReviewCompletedPayload(
         ticket_id=request.ticket_id,
@@ -89,25 +101,34 @@ def to_result_payload(
         evidence=list(assessment.evidence),
         reasoning_summary=assessment.reasoning_summary,
         requires_human_review=assessment.requires_human_review,
+        enriched_reasoning_summary=(narrative.polished_summary if narrative is not None else None),
+        evidence_explanation=(narrative.evidence_explanation if narrative is not None else None),
     )
 
 
-def build_a2a_output(assessment: RiskAssessment) -> A2AMessage:
-    """Build the A2A output message from an assessment (consumed by 003 normalize_risk_result)."""
+def build_a2a_output(
+    assessment: RiskAssessment,
+    *,
+    narrative: RiskNarrative | None = None,
+) -> A2AMessage:
+    """Build the A2A output message from an assessment (consumed by 003 normalize_risk_result).
+
+    When ``narrative`` is provided (LLM enrichment enabled), enriched text fields are included.
+    Binding fields are ALWAYS from the deterministic assessment.
+    """
+    data: dict = {
+        "recommendation": str(assessment.risk_level),
+        "score": assessment.confidence,  # stub-compatible numeric score (R5)
+        "confidence": assessment.confidence,
+        "evidence": [e.model_dump() for e in assessment.evidence],
+        "reasoning_summary": assessment.reasoning_summary,
+        "requires_human_review": assessment.requires_human_review,
+        "policy_references": assessment.policy_references,
+    }
+    if narrative is not None:
+        data["enriched_reasoning_summary"] = narrative.polished_summary
+        data["evidence_explanation"] = narrative.evidence_explanation
     return A2AMessage(
         role="agent",
-        parts=[
-            A2APart(
-                type="data",
-                data={
-                    "recommendation": str(assessment.risk_level),
-                    "score": assessment.confidence,  # stub-compatible numeric score (R5)
-                    "confidence": assessment.confidence,
-                    "evidence": [e.model_dump() for e in assessment.evidence],
-                    "reasoning_summary": assessment.reasoning_summary,
-                    "requires_human_review": assessment.requires_human_review,
-                    "policy_references": assessment.policy_references,
-                },
-            )
-        ],
+        parts=[A2APart(type="data", data=data)],
     )

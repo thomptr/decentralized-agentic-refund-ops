@@ -9,6 +9,14 @@ import os as _os
 
 from packages.contracts.events.payloads import ResolutionOutcome
 
+# LLM assistive runtime -- on by default per spec (008 FR-003).
+# Set CRA_LLM_ENABLED=false to disable LLM-assisted classification and drafting.
+CRA_LLM_ENABLED: bool = _os.environ.get("CRA_LLM_ENABLED", "true").lower().strip() in (
+    "true",
+    "1",
+    "yes",
+)
+
 # Agent identity
 AGENT_ID = "customer-resolution-agent"
 AGENT_DISPLAY_NAME = "Customer Resolution Agent"
@@ -56,7 +64,7 @@ INTERNAL_ONLY_DRAFT_FIELDS: tuple[str, ...] = (
     "risk_summary",
 )
 
-# Refund intent vocabulary — case-insensitive substring match (decision-policy.md §A)
+# Refund intent vocabulary â€” case-insensitive substring match (decision-policy.md Â§A)
 REFUND_INTENT_SIGNALS: frozenset[str] = frozenset(
     {
         "refund",

@@ -32,7 +32,10 @@ def main() -> None:
     from agent_foundation.runtime import AgentRuntime
     from agent_foundation.transport.publisher import Publisher
     from apps.agents.common import BROKER_URL
+    from apps.agents.risk_fraud.config import RISK_LLM_SUMMARY_ENABLED
     from packages.contracts.topics import TOPIC_RISK_RESULT
+
+    _llm_enabled = RISK_LLM_SUMMARY_ENABLED
 
     identity = build_identity()
     card = build_agent_card()
@@ -57,14 +60,41 @@ def main() -> None:
             evidence_count=len(assessment.evidence),
         )
 
+        # --- LLM enrichment (008): optional reasoning-summary polish ---
+        narrative = None
+        if _llm_enabled:
+            try:
+                from agent_foundation.llm import build_runtime as build_llm_runtime
+                from apps.agents.risk_fraud.llm_summary import enrich_assessment
+
+                llm_rt = build_llm_runtime()
+                narrative = await enrich_assessment(
+                    llm_rt,
+                    assessment,
+                    request,
+                    causation_id=req.task_id,
+                )
+                log.info(
+                    "llm_enrichment_complete",
+                    task_id=str(req.task_id),
+                    has_narrative=True,
+                )
+            except Exception as exc:
+                log.warning(
+                    "llm_enrichment_failed",
+                    task_id=str(req.task_id),
+                    error=str(exc),
+                )
+                narrative = None
+
         # Build the result payload and publish to TOPIC_RISK_RESULT (dual-path delivery, T020).
         # The Publisher is opened in the async entrypoint below and captured by this closure.
         # This publish is INSIDE the handler (deduped path) — a duplicate task_id is skipped
         # before the handler runs, so no second publish occurs (T083/FR-013).
-        payload = to_result_payload(assessment, request)
+        payload = to_result_payload(assessment, request, narrative=narrative)
         await _domain_pub.publish(
-            TOPIC_RISK_RESULT,
-            payload.model_dump(mode="json"),
+            payload,
+            event_type=TOPIC_RISK_RESULT,
             correlation_id=request.case_id,  # case_id → consumer's risk_result_handler key
             causation_id=req.task_id,  # causal link (FR-014/FR-015)
         )
@@ -84,7 +114,7 @@ def main() -> None:
                 reasoning_summary=assessment.reasoning_summary,
             )
 
-        return build_a2a_output(assessment)
+        return build_a2a_output(assessment, narrative=narrative)
 
     # Open a handler-owned Publisher for the domain result event path (research R2/R8)
     import asyncio
