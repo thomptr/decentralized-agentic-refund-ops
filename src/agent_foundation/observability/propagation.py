@@ -1,13 +1,13 @@
 """W3C traceparent inject/extract and TraceContextCarrier value object."""
+
 from __future__ import annotations
 
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Literal
 
-_TRACEPARENT_RE = re.compile(
-    r"^[0-9a-f]{2}-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$"
-)
+_TRACEPARENT_RE = re.compile(r"^[0-9a-f]{2}-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$")
 
 
 @dataclass
@@ -70,7 +70,8 @@ def extract(trace_context: dict[str, str] | None) -> object | None:
     try:
         from opentelemetry.propagate import extract as otel_extract
 
-        return otel_extract(trace_context)
+        ctx: object = otel_extract(trace_context)
+        return ctx
     except Exception:
         return None
 
@@ -94,7 +95,7 @@ def start_consumer_span(
 
         ctx = extract(trace_context)  # None → new root
         token = otel_context.attach(ctx) if ctx is not None else None
-        span = tracer.start_span(span_name)  # type: ignore[union-attr]
+        span = tracer.start_span(span_name)  # type: ignore[attr-defined]
         for k, v in attrs.items():
             span.set_attribute(k, v)
         if token is not None:
@@ -122,5 +123,5 @@ class _NoOpSpan:
     def __enter__(self) -> _NoOpSpan:
         return self
 
-    def __exit__(self, *a: object) -> bool:
+    def __exit__(self, *a: object) -> Literal[False]:
         return False

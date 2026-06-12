@@ -1,7 +1,9 @@
-"""T028: LLM generation attribute mapping — model, token usage, cache hit, latency, provider_mode."""
-from __future__ import annotations
+"""T028: LLM generation attribute mapping.
 
-import pytest
+Model, token usage, cache hit, latency, provider_mode.
+"""
+
+from __future__ import annotations
 
 from agent_foundation.observability.attributes import build_span_attrs
 

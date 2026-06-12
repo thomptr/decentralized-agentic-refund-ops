@@ -135,8 +135,8 @@ class LLMRuntime:
                 )
                 await self._emit_audit(request, result, profile)
                 _enrich_generation(
-                lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
-            )
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
                 _emit_scores(lf_gen, result)
                 return result
 
@@ -147,9 +147,7 @@ class LLMRuntime:
             if lf_gen is not None:
                 try:
                     input_prompt = (
-                        self._redactor.scrub(prompt)
-                        if self._config.redact_pii
-                        else prompt
+                        self._redactor.scrub(prompt) if self._config.redact_pii else prompt
                     )
                     lf_gen.update(input=input_prompt)
                 except Exception:
@@ -180,8 +178,8 @@ class LLMRuntime:
                     prompt_ref=prompt_ref,
                 )
                 _enrich_generation(
-                lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
-            )
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
                 _emit_scores(lf_gen, result)
                 return result
             except ProviderError as exc:
@@ -194,8 +192,8 @@ class LLMRuntime:
                     prompt_ref=prompt_ref,
                 )
                 _enrich_generation(
-                lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
-            )
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
                 _emit_scores(lf_gen, result)
                 return result
             except LLMRuntimeError as exc:
@@ -208,8 +206,8 @@ class LLMRuntime:
                     prompt_ref=prompt_ref,
                 )
                 _enrich_generation(
-                lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
-            )
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
                 _emit_scores(lf_gen, result)
                 return result
             except Exception as exc:
@@ -222,8 +220,8 @@ class LLMRuntime:
                     prompt_ref=prompt_ref,
                 )
                 _enrich_generation(
-                lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
-            )
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
                 _emit_scores(lf_gen, result)
                 return result
 
@@ -256,8 +254,8 @@ class LLMRuntime:
                         prompt_ref=prompt_ref,
                     )
                     _enrich_generation(
-                lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
-            )
+                        lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                    )
                     _emit_scores(lf_gen, result)
                     return result
 
@@ -274,9 +272,7 @@ class LLMRuntime:
 
             await self._store.put(request.idempotency_key, result)
             await self._emit_audit(request, result, profile, prompt_ref=prompt_ref)
-            _enrich_generation(
-                lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
-            )
+            _enrich_generation(lf_gen, result, self._redactor, redact_pii=self._config.redact_pii)
             _emit_scores(lf_gen, result)
             return result
 

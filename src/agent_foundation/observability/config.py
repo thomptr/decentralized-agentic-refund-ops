@@ -1,4 +1,5 @@
 """ObservabilityConfig — process-level observability configuration."""
+
 from __future__ import annotations
 
 import os
@@ -44,7 +45,9 @@ class ObservabilityConfig:
     @classmethod
     def from_env(cls, *, agent_id: str = "agent") -> ObservabilityConfig:
         enabled = os.environ.get("AGENT_OBSERVABILITY_ENABLED", "true").lower() not in (
-            "false", "0", "no"
+            "false",
+            "0",
+            "no",
         )
         public_key = os.environ.get("LANGFUSE_PUBLIC_KEY") or None
         secret_key = os.environ.get("LANGFUSE_SECRET_KEY") or None
@@ -95,6 +98,7 @@ class ObservabilityConfig:
             return False
         try:
             import langfuse  # noqa: F401
+
             return True
         except ImportError:
             return False

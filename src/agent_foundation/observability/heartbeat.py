@@ -1,4 +1,5 @@
 """Periodic system.agent.heartbeat emitter (FR-018, liveness only)."""
+
 from __future__ import annotations
 
 import asyncio

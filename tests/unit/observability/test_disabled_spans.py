@@ -1,4 +1,5 @@
 """Span names listed in AGENT_OBSERVABILITY_DISABLED_SPANS are never exported."""
+
 from __future__ import annotations
 
 import pytest

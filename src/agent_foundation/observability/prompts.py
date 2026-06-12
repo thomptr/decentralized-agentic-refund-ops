@@ -1,4 +1,5 @@
 """LangFuse prompt fetch with local PromptTemplate fallback (non-blocking)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -34,7 +35,7 @@ def fetch_prompt(
         kwargs: dict[str, object] = {"name": name}
         if version is not None:
             kwargs["version"] = version
-        lf_prompt = client.get_prompt(**kwargs)  # type: ignore[union-attr]
+        lf_prompt = client.get_prompt(**kwargs)  # type: ignore[attr-defined]
         if hasattr(lf_prompt, "get_langchain_prompt"):
             template_str = lf_prompt.get_langchain_prompt()
         else:

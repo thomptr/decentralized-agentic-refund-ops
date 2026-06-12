@@ -1,8 +1,8 @@
 """T039: Guard test — no observability/tracing API references in agent handler modules (SC-003)."""
+
 from __future__ import annotations
 
 import ast
-import os
 from pathlib import Path
 
 import pytest

@@ -1,4 +1,5 @@
 """Programmatic evaluation score helpers — write-only, non-binding (FR-016)."""
+
 from __future__ import annotations
 
 from typing import Any

@@ -1,4 +1,5 @@
 """Centralized capture-policy seam for PII redaction before LangFuse export (FR-017/SC-007)."""
+
 from __future__ import annotations
 
 from typing import Any

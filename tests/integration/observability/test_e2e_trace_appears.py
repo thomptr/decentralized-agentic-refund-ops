@@ -2,6 +2,7 @@
 
 Auto-skipped unless LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, and LANGFUSE_SECRET_KEY are all set.
 """
+
 from __future__ import annotations
 
 import os
@@ -15,7 +16,8 @@ pytestmark = pytest.mark.integration
 
 def _require_langfuse() -> None:
     missing = [
-        v for v in ("LANGFUSE_HOST", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY")
+        v
+        for v in ("LANGFUSE_HOST", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY")
         if not os.environ.get(v)
     ]
     if missing:

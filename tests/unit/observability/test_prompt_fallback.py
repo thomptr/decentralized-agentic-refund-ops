@@ -1,7 +1,6 @@
 """T031: Prompt fetch fallback — unmanaged prompt → local template, non-blocking."""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from agent_foundation.observability.prompts import PromptTemplate, fetch_prompt
 

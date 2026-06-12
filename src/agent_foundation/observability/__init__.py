@@ -1,4 +1,5 @@
 """Public surface for the observability package."""
+
 from __future__ import annotations
 
 from agent_foundation.observability.client import configure as _configure

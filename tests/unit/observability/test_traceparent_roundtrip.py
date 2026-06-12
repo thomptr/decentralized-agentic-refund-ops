@@ -1,9 +1,9 @@
 """T017: Trace-context round-trip: inject→envelope.trace_context→extract parents correctly."""
+
 from __future__ import annotations
 
 from agent_foundation.observability.propagation import (
     TraceContextCarrier,
-    _TRACEPARENT_RE,
 )
 
 

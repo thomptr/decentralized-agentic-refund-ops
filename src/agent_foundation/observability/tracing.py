@@ -1,4 +1,5 @@
 """span() and generation() context managers — OTel-compatible, fail-open."""
+
 from __future__ import annotations
 
 import time

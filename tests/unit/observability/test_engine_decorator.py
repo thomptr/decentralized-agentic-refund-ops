@@ -1,4 +1,5 @@
 """T019: @traced decorator — return value preserved, span emitted, error span on exception."""
+
 from __future__ import annotations
 
 import pytest

@@ -98,9 +98,7 @@ class AgentRuntime:
             card_interval = 30.0
         if card_interval > 0:
             tasks.append(
-                asyncio.create_task(
-                    self._republish_card_loop(publisher, card_interval, stop_event)
-                )
+                asyncio.create_task(self._republish_card_loop(publisher, card_interval, stop_event))
             )
         return tasks
 

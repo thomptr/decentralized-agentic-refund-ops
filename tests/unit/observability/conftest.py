@@ -1,5 +1,4 @@
 """Unit-test conftest for observability: forces toggle OFF so no LangFuse/OTel network is needed."""
-import os
 
 import pytest
 

@@ -1,10 +1,11 @@
-"""T030: Heartbeat emission — system.agent.heartbeat periodic, carries agent_id; interval=0 disables."""
+"""T030: Heartbeat emission.
+
+system.agent.heartbeat periodic, carries agent_id; interval=0 disables.
+"""
+
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
+from unittest.mock import MagicMock
 
 from agent_foundation.observability.heartbeat import HeartbeatEmitter
 

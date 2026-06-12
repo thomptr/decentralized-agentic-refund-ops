@@ -93,3 +93,9 @@ python_version = "3.12"
 [[tool.mypy.overrides]]
 module = ["boto3.*", "botocore.*"]
 ignore_missing_imports = true
+
+# langfuse + opentelemetry live in the optional `observability` extra, so they
+# are absent from the `dev` install used in CI — same rationale as boto3 above.
+[[tool.mypy.overrides]]
+module = ["langfuse.*", "opentelemetry.*"]
+ignore_missing_imports = true

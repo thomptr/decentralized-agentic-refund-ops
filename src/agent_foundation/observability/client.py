@@ -1,4 +1,5 @@
 """Guarded LangFuse/OTel client singleton — no-op fallback when off/unavailable."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -28,6 +29,7 @@ def configure(config: ObservabilityConfig) -> None:
         return
     try:
         import langfuse  # noqa: F401
+
         # langfuse v3 SDK: tracing is enabled by default; the v2 `enabled=`
         # kwarg was removed (renamed to `tracing_enabled`). Passing the old
         # name raises TypeError and silently disables the client → no traces.
@@ -49,7 +51,8 @@ def langfuse_callback_handler() -> Any:
     if _client is None:
         return None
     try:
-        from langfuse.langchain import CallbackHandler  # type: ignore[import-untyped]
+        from langfuse.langchain import CallbackHandler
+
         cfg = get_config()
         kwargs: dict[str, Any] = {
             "public_key": cfg.public_key,

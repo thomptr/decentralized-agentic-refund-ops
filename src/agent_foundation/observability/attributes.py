@@ -1,4 +1,5 @@
 """FR-014 span attribute assembly — IDs and non-PII metadata only."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -23,11 +24,7 @@ def build_span_attrs(**kwargs: Any) -> dict[str, str]:
         "model_id",
         "topic",
     }
-    return {
-        k: str(v)
-        for k, v in kwargs.items()
-        if k in allowed and v is not None
-    }
+    return {k: str(v) for k, v in kwargs.items() if k in allowed and v is not None}
 
 
 def attrs_from_envelope(envelope: Any) -> dict[str, str]:

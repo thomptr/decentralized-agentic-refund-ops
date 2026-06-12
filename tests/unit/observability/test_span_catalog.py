@@ -1,7 +1,6 @@
 """T018: Span catalog — the 8 named spans and their FR-014 attribute assembly."""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from agent_foundation.observability.attributes import attrs_from_envelope, build_span_attrs
 

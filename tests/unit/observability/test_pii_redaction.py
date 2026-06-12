@@ -1,14 +1,15 @@
 """T029: PII redaction before export — prompts/completions scrubbed; span attrs never carry PII."""
+
 from __future__ import annotations
 
-import pytest
-
 from agent_foundation.observability.attributes import build_span_attrs
-from agent_foundation.observability.redaction import redact_for_export
 from agent_foundation.observability.config import ObservabilityConfig
+from agent_foundation.observability.redaction import redact_for_export
 
 
-def _cfg(redact: bool = True, log_raw_prompts: bool = False, log_raw_outputs: bool = False) -> ObservabilityConfig:
+def _cfg(
+    redact: bool = True, log_raw_prompts: bool = False, log_raw_outputs: bool = False
+) -> ObservabilityConfig:
     return ObservabilityConfig(
         enabled=False,
         redact_pii=redact,

@@ -1,4 +1,5 @@
 """T016: When toggle is OFF, all observability calls are no-ops and bodies still run."""
+
 from __future__ import annotations
 
 import pytest
@@ -41,9 +42,8 @@ def test_generation_noop_body_runs(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_span_reraises_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AGENT_OBSERVABILITY_ENABLED", "false")
     configure_observability(agent_id="test-agent")
-    with pytest.raises(ValueError, match="boom"):
-        with span("test.span"):
-            raise ValueError("boom")
+    with pytest.raises(ValueError, match="boom"), span("test.span"):
+        raise ValueError("boom")
 
 
 def test_traced_decorator_noop_returns_value(monkeypatch: pytest.MonkeyPatch) -> None:

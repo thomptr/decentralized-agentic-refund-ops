@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import MutableMapping
 from typing import Any
 
 import structlog
@@ -23,15 +24,15 @@ TASK_DUPLICATE_SKIPPED = "task.duplicate-skipped"
 
 
 def inject_trace_context(
-    logger: Any, method: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+    logger: Any, method: str, event_dict: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
     """Structlog processor that injects OTel trace_id/span_id into log lines.
 
     When observability is off or no active span exists, this is a no-op.
     Fail-open: any exception returns event_dict unchanged.
     """
     try:
-        from opentelemetry import trace  # type: ignore[import]
+        from opentelemetry import trace
 
         span = trace.get_current_span()
         ctx = span.get_span_context()
