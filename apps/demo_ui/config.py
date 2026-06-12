@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import threading
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -83,23 +84,64 @@ def run_async[T](coro: Awaitable[T], *, timeout: float | None = None) -> T:
 # ---------------------------------------------------------------------------
 
 _cache: dict[str, tuple[float, Any]] = {}
+_inflight: set[str] = set()
+_inflight_lock = threading.Lock()
 
 
-def cached_call[T](key: str, factory: Callable[[], T], ttl: float | None = None) -> T:
+def cached_call[T](
+    key: str,
+    factory: Callable[[], T],
+    ttl: float | None = None,
+    *,
+    stale_while_revalidate: bool = False,
+) -> T:
     """Return ``factory()``'s result, reusing a cached value within ``ttl`` seconds.
 
     Keyed by ``key`` so concurrent reruns inside one refresh interval reuse the
     last Kafka read instead of re-scanning the topic. Pure caching — no domain
     logic. ``ttl`` defaults to ``REFRESH_SECONDS``.
+
+    With ``stale_while_revalidate=True``, an expired-but-present value is served
+    immediately while ``factory()`` is recomputed in a daemon thread, so a slow
+    read (the roster opens a fresh Kafka consumer each time) never blocks the
+    refresh after the first load. Only the cold path (no cached value) blocks.
     """
     window = REFRESH_SECONDS if ttl is None else ttl
     now = time.monotonic()
     hit = _cache.get(key)
     if hit is not None and (now - hit[0]) < window:
         return hit[1]
+    if stale_while_revalidate and hit is not None:
+        _spawn_refresh(key, factory)
+        return hit[1]
     value = factory()
     _cache[key] = (now, value)
     return value
+
+
+def _spawn_refresh[T](key: str, factory: Callable[[], T]) -> None:
+    """Recompute ``factory()`` in a daemon thread and update the cache.
+
+    De-duplicated by ``key`` so overlapping reruns spawn at most one background
+    refresh. The thread touches no Streamlit APIs (only ``_cache``), so it needs
+    no ScriptRunContext. Failures leave the last-good value in place.
+    """
+    with _inflight_lock:
+        if key in _inflight:
+            return
+        _inflight.add(key)
+
+    def _run() -> None:
+        try:
+            value = factory()
+            _cache[key] = (time.monotonic(), value)
+        except Exception:
+            pass
+        finally:
+            with _inflight_lock:
+                _inflight.discard(key)
+
+    threading.Thread(target=_run, daemon=True).start()
 
 
 def clear_cache() -> None:

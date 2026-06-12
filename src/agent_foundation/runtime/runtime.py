@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import os
 from collections.abc import Callable, Coroutine
 from datetime import UTC, datetime
 from typing import Any
@@ -65,6 +67,66 @@ class AgentRuntime:
         if self._publisher is not None:
             await self._publish_card(self._publisher)
 
+    def _start_background_tasks(
+        self, publisher: Any, stop_event: asyncio.Event
+    ) -> list[asyncio.Task[None]]:
+        """Spawn the heartbeat emitter and periodic card-republish loops.
+
+        Both are best-effort liveness/availability concerns kept out of task
+        handling. The heartbeat honours the observability toggle/interval; the
+        card republish honours ``AGENT_CARD_REPUBLISH_INTERVAL_S`` (0 disables).
+        """
+        from agent_foundation.observability.config import ObservabilityConfig
+        from agent_foundation.observability.heartbeat import HeartbeatEmitter
+
+        tasks: list[asyncio.Task[None]] = []
+
+        obs = ObservabilityConfig.from_env(agent_id=self._identity.agent_id)
+        hb_interval = obs.heartbeat_interval_s if obs.enabled else 0.0
+        emitter = HeartbeatEmitter(
+            agent_id=self._identity.agent_id,
+            publisher=publisher,
+            interval_s=hb_interval,
+            tenant_id=self._identity.tenant_id,
+        )
+        if emitter.is_enabled:
+            tasks.append(asyncio.create_task(emitter.run(stop_event)))
+
+        try:
+            card_interval = float(os.environ.get("AGENT_CARD_REPUBLISH_INTERVAL_S", "30"))
+        except ValueError:
+            card_interval = 30.0
+        if card_interval > 0:
+            tasks.append(
+                asyncio.create_task(
+                    self._republish_card_loop(publisher, card_interval, stop_event)
+                )
+            )
+        return tasks
+
+    async def _republish_card_loop(
+        self, publisher: Any, interval_s: float, stop_event: asyncio.Event
+    ) -> None:
+        """Periodically re-publish the Agent Card on the compacted discovery topic.
+
+        A card is otherwise published only once at startup, so the discovery
+        registry never recovers if the topic is purged/recreated or the broker
+        loses data — a long-running agent would silently vanish until its next
+        restart. Re-publishing on an interval makes the registry self-healing
+        and keeps ``last_announced`` fresh. The card is keyed by ``agent_id``,
+        so compaction keeps exactly one record per agent no matter how often
+        this runs.
+        """
+        if interval_s <= 0:
+            return
+        while True:
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=interval_s)
+                break  # stop requested
+            except TimeoutError:
+                pass  # interval elapsed → republish
+            await self._publish_card(publisher)
+
     async def _publish_card(self, publisher: Any) -> None:
         from agent_foundation.transport.topics import TOPIC_AGENT_CARD
 
@@ -80,7 +142,9 @@ class AgentRuntime:
             payload=self._card.model_dump(mode="json"),
         )
         try:
-            await publisher.publish_raw(card_envelope, TOPIC_AGENT_CARD)
+            await publisher.publish_raw(
+                card_envelope, TOPIC_AGENT_CARD, key=self._identity.agent_id
+            )
             _log.info(TASK_CARD_PUBLISHED, agent_id=self._identity.agent_id)
         except Exception as exc:
             _log.warning("card.publish_failed", error=str(exc))
@@ -109,6 +173,12 @@ class AgentRuntime:
                 extra_topics=[endpoint_topic_new_topic(self._identity.agent_id)],
             )
             await self._publish_card(publisher)
+
+            # Background liveness/availability tasks. They share a private stop
+            # event so they shut down cleanly when serve() exits, independent of
+            # whether the caller passed a stop_event.
+            bg_stop = asyncio.Event()
+            bg_tasks = self._start_background_tasks(publisher, bg_stop)
 
             tracker = IdempotencyTracker(f"{self._identity.agent_id}.tasks", self._broker_url)
             await tracker.initialize()
@@ -144,6 +214,12 @@ class AgentRuntime:
                         msg.value, publisher, tracker, write_task_audit, TOPIC_TASK_RESULT
                     )
             finally:
+                bg_stop.set()
+                for task in bg_tasks:
+                    task.cancel()
+                for task in bg_tasks:
+                    with contextlib.suppress(asyncio.CancelledError, Exception):
+                        await task
                 await consumer.stop()
                 self._publisher = None
 
@@ -277,36 +353,65 @@ class AgentRuntime:
             await write_task_audit(publisher, envelope, "failed", task_id, reason="no_handler")
             return
 
+        # Extract OTel parent context from envelope trace_context (fail-open)
         try:
-            output: A2AMessage = await handler(req)
-            result = TaskResult(
-                task_id=task_id,
-                status="completed",
-                performer_agent_id=self._identity.agent_id,
-                output=output,
-            )
-            await self._publish_result(publisher, result, envelope)
-            await write_task_audit(publisher, envelope, "completed", task_id)
-            _log.info(TASK_COMPLETED, task_id=str(task_id), capability=req.capability)
-        except Exception as exc:
-            _log.error(
-                TASK_FAILED,
-                task_id=str(task_id),
+            from agent_foundation.observability.propagation import extract as obs_extract
+
+            _trace_ctx = getattr(req, "trace_context", None)
+            obs_extract(_trace_ctx)
+        except Exception:
+            pass
+
+        # Wrap handler dispatch with a2a.task.receive span (fail-open)
+        try:
+            from agent_foundation.observability.attributes import build_span_attrs
+            from agent_foundation.observability.tracing import span as obs_span
+
+            _span_attrs = build_span_attrs(
                 capability=req.capability,
-                error=str(exc),
+                task_id=str(task_id),
+                agent_id=self._identity.agent_id,
             )
-            result = TaskResult(
-                task_id=task_id,
-                status="failed",
-                performer_agent_id=self._identity.agent_id,
-                error=TaskError(category="handler_error", message=str(exc)[:500]),
+            _span_cm: contextlib.AbstractContextManager[Any] = obs_span(
+                "a2a.task.receive", attrs=_span_attrs
             )
-            await self._publish_result(publisher, result, envelope)
-            await write_task_audit(publisher, envelope, "failed", task_id, reason=str(exc)[:500])
+        except Exception:
+            _span_cm = contextlib.nullcontext()
+
+        try:
+            with _span_cm:
+                try:
+                    output: A2AMessage = await handler(req)
+                    result = TaskResult(
+                        task_id=task_id,
+                        status="completed",
+                        performer_agent_id=self._identity.agent_id,
+                        output=output,
+                    )
+                    await self._publish_result(publisher, result, envelope)
+                    await write_task_audit(publisher, envelope, "completed", task_id)
+                    _log.info(TASK_COMPLETED, task_id=str(task_id), capability=req.capability)
+                except Exception as exc:
+                    _log.error(
+                        TASK_FAILED,
+                        task_id=str(task_id),
+                        capability=req.capability,
+                        error=str(exc),
+                    )
+                    result = TaskResult(
+                        task_id=task_id,
+                        status="failed",
+                        performer_agent_id=self._identity.agent_id,
+                        error=TaskError(category="handler_error", message=str(exc)[:500]),
+                    )
+                    await self._publish_result(publisher, result, envelope)
+                    await write_task_audit(
+                        publisher, envelope, "failed", task_id, reason=str(exc)[:500]
+                    )
+        except Exception:
+            pass
 
         # Mark task processed for idempotency
-        import contextlib
-
         with contextlib.suppress(Exception):
             await tracker.mark_processed(task_id)
 

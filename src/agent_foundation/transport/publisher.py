@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from datetime import UTC, datetime
 from types import TracebackType
 from typing import Any
@@ -19,6 +20,9 @@ from agent_foundation.logging import (
     EVENT_PUBLISHED,
     get_logger,
 )
+from agent_foundation.observability import span
+from agent_foundation.observability.attributes import attrs_from_envelope
+from agent_foundation.observability.propagation import current_trace_context
 from agent_foundation.payloads import PayloadValidationError, UnknownEventType, lookup
 
 _log = get_logger(__name__)
@@ -121,14 +125,19 @@ class Publisher:
             )
             raise
 
+        # Inject current trace context into the envelope before serialization
+        ctx = current_trace_context()
+        envelope = envelope.model_copy(update={"trace_context": ctx})
+
         resolved_topic = topic if topic is not None else self._resolve_topic(event_type)
         data = self._serialize(envelope)
         try:
-            await self._producer.send_and_wait(
-                resolved_topic,
-                value=data,
-                key=str(envelope.event_id).encode(),
-            )
+            with span("kafka.publish", attrs=attrs_from_envelope(envelope)):
+                await self._producer.send_and_wait(
+                    resolved_topic,
+                    value=data,
+                    key=str(envelope.event_id).encode(),
+                )
         except Exception as exc:
             _log.error(
                 EVENT_PUBLISH_FAILED,
@@ -152,11 +161,37 @@ class Publisher:
         self,
         envelope: EventEnvelope,
         topic: str,
+        *,
+        key: str | None = None,
+        trace: bool = True,
     ) -> None:
-        """Publish a pre-built envelope directly (used by audit store)."""
+        """Publish a pre-built envelope directly (used by audit store).
+
+        The Kafka message key defaults to the envelope's ``event_id``. Pass
+        ``key`` to override it — compacted topics (e.g. agent-card discovery)
+        must key by a stable identity such as ``agent_id`` so latest-wins
+        compaction collapses to one record per agent instead of growing
+        unbounded with a fresh ``event_id`` per publish.
+
+        Set ``trace=False`` to skip the ``kafka.publish`` span for high-frequency
+        operational publishes (e.g. liveness heartbeats) that would otherwise
+        flood the trace backend with standalone, parent-less traces. Kafka stays
+        the system of record regardless of whether the publish is traced.
+        """
+        # Inject current trace context into the envelope before serialization
+        ctx = current_trace_context()
+        envelope = envelope.model_copy(update={"trace_context": ctx})
+
         data = self._serialize(envelope)
-        await self._producer.send_and_wait(
-            topic,
-            value=data,
-            key=str(envelope.event_id).encode(),
+        msg_key = (key if key is not None else str(envelope.event_id)).encode()
+        publish_span = (
+            span("kafka.publish", attrs=attrs_from_envelope(envelope))
+            if trace
+            else contextlib.nullcontext()
         )
+        with publish_span:
+            await self._producer.send_and_wait(
+                topic,
+                value=data,
+                key=msg_key,
+            )

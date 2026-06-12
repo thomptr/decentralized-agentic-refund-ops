@@ -20,8 +20,13 @@ def main() -> None:
     import asyncio
     import signal
 
+    from agent_foundation.logging import configure_logging
+    from agent_foundation.observability import configure_observability
     from apps.agents.common import BROKER_URL
     from apps.agents.customer_resolution.agent import ResolutionService
+
+    configure_logging()
+    configure_observability(agent_id="customer-resolution")
 
     service = ResolutionService(broker_url=BROKER_URL)
     stop_event = asyncio.Event()

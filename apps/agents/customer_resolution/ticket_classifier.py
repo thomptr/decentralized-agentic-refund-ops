@@ -14,6 +14,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from agent_foundation.observability.decorators import traced
 from apps.agents.customer_resolution.config import AGENT_ID, REFUND_INTENT_SIGNALS
 from apps.agents.customer_resolution.models import Triage
 from packages.contracts.events.payloads import (
@@ -49,6 +50,7 @@ class TicketClassification(BaseModel):
         )
 
 
+@traced("ticket.classify")
 def classify(ticket: SupportTicketCreatedPayload) -> Triage:
     """Classify a support ticket as refund-review vs. direct-response.
 

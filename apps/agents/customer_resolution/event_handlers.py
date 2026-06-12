@@ -216,6 +216,19 @@ async def _emit_decision_and_draft(
         causation_id=causation_id,
     )
     case.decided_event_id = decided_envelope.event_id
+    try:
+        await write_audit(
+            publisher,
+            decided_envelope,
+            "completed",
+            f"decision: {decision.outcome.value}",
+        )
+    except Exception:
+        logger.warning(
+            "audit_write_failed",
+            case_id=str(case.case_id),
+            event_id=str(decided_envelope.event_id),
+        )
     logger.info(
         "decision_emitted",
         case_id=str(case.case_id),

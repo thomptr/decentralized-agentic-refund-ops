@@ -7,6 +7,7 @@ import contextlib
 from collections.abc import Callable, Coroutine
 from typing import Any
 
+import structlog
 from pydantic import ValidationError
 
 from agent_foundation.envelope import AgentIdentity, EventEnvelope
@@ -17,6 +18,9 @@ from agent_foundation.logging import (
     EVENT_REJECTED,
     get_logger,
 )
+from agent_foundation.observability.attributes import attrs_from_envelope
+from agent_foundation.observability.propagation import extract
+from agent_foundation.observability.tracing import span as obs_span
 from agent_foundation.payloads import UnknownEventType, lookup
 
 _log = get_logger(__name__)
@@ -168,10 +172,26 @@ class Consumer:
                     correlation_id=str(envelope.correlation_id),
                 )
 
+                with contextlib.suppress(Exception):
+                    extract(envelope.trace_context)
+
+                with contextlib.suppress(Exception):
+                    structlog.contextvars.bind_contextvars(
+                        correlation_id=str(envelope.correlation_id)
+                    )
+
+                handler_error = False
                 try:
-                    await handler(envelope)
+                    with obs_span("event.consume", attrs=attrs_from_envelope(envelope)):
+                        await handler(envelope)
                 except Exception as exc:
                     _log.error(CONSUMER_ERROR, error=str(exc), event_id=str(envelope.event_id))
+                    handler_error = True
+                finally:
+                    with contextlib.suppress(Exception):
+                        structlog.contextvars.clear_contextvars()
+
+                if handler_error:
                     continue
 
                 if tracker is not None:

@@ -28,6 +28,10 @@ honest empty/degraded states rather than crashing.
 
 ## Views
 
+For a per-view walkthrough of **purpose and how each view works** (data source, rendering
+module, behaviours) — including the Demo trigger's **Scenario (seeded billing data)** dropdown —
+see [`demo-ui.md`](./demo-ui.md).
+
 | View | What it shows |
 |------|---------------|
 | **Roster** | The three peer agents as they advertise themselves over the discovery topic: identity, version, accepting endpoint, capabilities, and a liveness badge (🟢 live / ⚪ unknown / ⚫ not announced). A missing agent appears as *not announced* rather than being omitted; only the latest card per agent is shown. |

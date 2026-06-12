@@ -33,6 +33,15 @@ langgraph = [
     "langgraph>=0.2",
     "langchain-aws>=0.2",
 ]
+observability = [
+    # Pin to v3: the client/tracing code targets the v3 SDK API
+    # (Langfuse(enabled=...), langfuse.callback.CallbackHandler) and the
+    # self-hosted stack runs the langfuse:3 server image. v4 renamed/moved
+    # these and would silently fall back to a no-op client (no traces).
+    "langfuse>=3.0,<4",
+    "opentelemetry-sdk>=1.24",
+    "opentelemetry-exporter-otlp-proto-http>=1.24",
+]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",

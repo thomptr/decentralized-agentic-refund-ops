@@ -27,6 +27,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
+from agent_foundation.observability.decorators import traced
 from apps.agents.customer_resolution.config import (
     CONFIDENCE_THRESHOLD,
     HUMAN_APPROVAL_OUTCOMES,
@@ -113,6 +114,7 @@ def build_evidence(
     return evidence
 
 
+@traced("case.decision")
 def decide(
     triage: Triage,
     billing: BillingFinding | None,

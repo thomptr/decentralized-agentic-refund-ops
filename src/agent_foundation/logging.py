@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Any
 
 import structlog
 
@@ -21,6 +22,27 @@ TASK_FAILED = "task.failed"
 TASK_DUPLICATE_SKIPPED = "task.duplicate-skipped"
 
 
+def inject_trace_context(
+    logger: Any, method: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
+    """Structlog processor that injects OTel trace_id/span_id into log lines.
+
+    When observability is off or no active span exists, this is a no-op.
+    Fail-open: any exception returns event_dict unchanged.
+    """
+    try:
+        from opentelemetry import trace  # type: ignore[import]
+
+        span = trace.get_current_span()
+        ctx = span.get_span_context()
+        if ctx is not None and ctx.is_valid:
+            event_dict["trace_id"] = format(ctx.trace_id, "032x")
+            event_dict["span_id"] = format(ctx.span_id, "016x")
+    except Exception:
+        pass
+    return event_dict
+
+
 def configure_logging(level: int = logging.INFO) -> None:
     """Configure structlog for JSON output to stdout."""
     structlog.configure(
@@ -29,6 +51,7 @@ def configure_logging(level: int = logging.INFO) -> None:
             structlog.stdlib.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),
+            inject_trace_context,
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(level),
