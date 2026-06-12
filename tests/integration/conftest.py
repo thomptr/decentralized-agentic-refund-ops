@@ -163,6 +163,13 @@ async def _run_resolution_agent(
     # Patch deadline/tick for fast integration tests
     _cfg.CASE_DEADLINE_SECONDS = case_deadline_seconds
     _cfg.REAPER_TICK_SECONDS = reaper_tick_seconds
+    # Pin classification to the deterministic path. The default stub LLM emits
+    # hash-derived output whose needs_refund_review is effectively a coin flip;
+    # when it occasionally validates as non-refund the intake handler short-circuits
+    # to direct_response, making these routing-outcome assertions flaky. The
+    # choreography tests assert deterministic routing from seeded facts, so the
+    # LLM-assisted classifier must be off here.
+    _cfg.CRA_LLM_ENABLED = False
 
     from apps.agents.customer_resolution.agent import ResolutionService
 

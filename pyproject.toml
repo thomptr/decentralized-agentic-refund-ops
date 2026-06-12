@@ -33,6 +33,15 @@ langgraph = [
     "langgraph>=0.2",
     "langchain-aws>=0.2",
 ]
+observability = [
+    # Pin to v3: the client/tracing code targets the v3 SDK API
+    # (Langfuse(enabled=...), langfuse.callback.CallbackHandler) and the
+    # self-hosted stack runs the langfuse:3 server image. v4 renamed/moved
+    # these and would silently fall back to a no-op client (no traces).
+    "langfuse>=3.0,<4",
+    "opentelemetry-sdk>=1.24",
+    "opentelemetry-exporter-otlp-proto-http>=1.24",
+]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
@@ -83,4 +92,10 @@ python_version = "3.12"
 # the check passes whether or not the SDK happens to be installed.
 [[tool.mypy.overrides]]
 module = ["boto3.*", "botocore.*"]
+ignore_missing_imports = true
+
+# langfuse + opentelemetry live in the optional `observability` extra, so they
+# are absent from the `dev` install used in CI — same rationale as boto3 above.
+[[tool.mypy.overrides]]
+module = ["langfuse.*", "opentelemetry.*"]
 ignore_missing_imports = true

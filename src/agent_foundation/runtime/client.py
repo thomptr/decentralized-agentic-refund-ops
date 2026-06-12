@@ -58,18 +58,54 @@ class A2AClient:
             input=input,
         )
 
+        # Propagate trace context into the TaskRequest if the field exists (fail-open).
+        try:
+            from agent_foundation.observability.propagation import current_trace_context
+
+            tc = current_trace_context()
+            if tc is not None and hasattr(req, "trace_context"):
+                req.trace_context = tc
+        except Exception:
+            pass
+
         from agent_foundation.transport.publisher import Publisher
 
-        async with Publisher(self._identity, self._broker_url) as publisher:
-            await publisher.publish(
-                req,
-                "agent.task_request.v1",
-                resolved_correlation_id,
-                resolved_causation_id,
-                topic=target_topic,
-            )
+        # Wrap the publish + result-await with an a2a.task.send span (fail-open).
+        try:
+            from agent_foundation.observability.attributes import build_span_attrs
+            from agent_foundation.observability.tracing import span as obs_span
 
-        return await self._await_result(resolved_task_id, timeout_s)
+            _span_ctx = obs_span(
+                "a2a.task.send",
+                attrs=build_span_attrs(
+                    capability=capability,
+                    task_id=str(resolved_task_id),
+                    agent_id=self._identity.agent_id,
+                ),
+            )
+        except Exception:
+            _span_ctx = None
+
+        async def _do_submit() -> TaskResult:
+            async with Publisher(self._identity, self._broker_url) as publisher:
+                await publisher.publish(
+                    req,
+                    "agent.task_request.v1",
+                    resolved_correlation_id,
+                    resolved_causation_id,
+                    topic=target_topic,
+                )
+            return await self._await_result(resolved_task_id, timeout_s)
+
+        if _span_ctx is not None:
+            try:
+                with _span_ctx:
+                    return await _do_submit()
+            except Exception:
+                # If the span context itself raises on enter/exit, fall through to bare call.
+                pass
+
+        return await _do_submit()
 
     async def _await_result(self, task_id: UUID, timeout_s: float) -> TaskResult:
         from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped]

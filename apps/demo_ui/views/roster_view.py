@@ -48,7 +48,11 @@ def _render_entry(entry: RosterEntry) -> None:
 
 @st.fragment(run_every=config.REFRESH_SECONDS)
 def _live_roster(broker_url: str) -> None:
-    entries = config.cached_call(f"roster:{broker_url}", lambda: build_roster(broker_url))
+    entries = config.cached_call(
+        f"roster:{broker_url}",
+        lambda: build_roster(broker_url),
+        stale_while_revalidate=True,
+    )
     if not any(e.announced for e in entries):
         st.warning("Waiting for agents to announce their cards…")
     for entry in entries:

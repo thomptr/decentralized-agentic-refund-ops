@@ -25,6 +25,7 @@ Score contribution adjustments (internal weights, PoC):
 
 from __future__ import annotations
 
+from agent_foundation.observability.decorators import traced
 from apps.agents.risk_fraud.models import (
     EvidenceItem,
     RecommendedAction,
@@ -47,6 +48,7 @@ from apps.agents.risk_fraud.policy import (
 )
 
 
+@traced("policy.evaluate")
 def assess_signals(
     signals: RiskSignals,
     request: RiskAssessmentRequest,

@@ -32,7 +32,11 @@ class TraceStep:
     outcome: str | None  # outcome/status if available (from AuditPayload)
     task_id: UUID | None  # for A2A task steps (from AuditPayload)
     timestamp: datetime
-    caused_by: UUID | None  # causation_id of this step
+    caused_by: UUID | None  # raw causation_id of this step (for audit lookup)
+    # Resolved causal parent's event_id: caused_by when it names an event in the
+    # case, or the triggering TaskRequest's event_id when caused_by is an A2A
+    # task_id. None for roots and genuine orphans (parent not in the case).
+    parent_event_id: UUID | None = None
 
 
 def _extract_outcome(envelope: EventEnvelope) -> str | None:
@@ -89,6 +93,28 @@ def trace_case(correlation_id: UUID, envelopes: list[EventEnvelope]) -> list[Tra
     if not relevant:
         return []
 
+    event_ids = {e.event_id for e in relevant}
+
+    # A peer's domain result (e.g. local.billing.refund-analysis.completed.v1)
+    # records its cause as the A2A *task_id*, not the triggering request's
+    # event_id — so a naive causation_id→event_id link reports it as an orphan.
+    # Map each task_id to the TaskRequest envelope that carries it, so those
+    # results attach to the request that caused them.
+    request_eid_by_task: dict[UUID, UUID] = {}
+    for e in relevant:
+        if "task_request" in e.event_type:
+            tid = _extract_task_id(e)
+            if tid is not None:
+                request_eid_by_task.setdefault(tid, e.event_id)
+
+    def _resolve_parent(env: EventEnvelope) -> UUID | None:
+        """Resolve an envelope's causal parent event_id (None = root/orphan)."""
+        cb: UUID | None = env.causation_id
+        if cb is None or cb in event_ids:
+            return cb
+        parent: UUID | None = request_eid_by_task.get(cb)  # task_id → request; else orphan
+        return parent
+
     # Step 2: find roots (causation_id is None)
     roots = [e for e in relevant if e.causation_id is None]
     if not roots:
@@ -98,11 +124,14 @@ def trace_case(correlation_id: UUID, envelopes: list[EventEnvelope]) -> list[Tra
     # Sort roots by timestamp for determinism
     roots.sort(key=lambda e: e.timestamp)
 
-    # Build children map: causation_id -> list of children envelopes
+    # Build children map keyed by the *resolved* parent event_id.
+    parent_by_eid: dict[UUID, UUID | None] = {}
     children: dict[UUID, list[EventEnvelope]] = {}
     for e in relevant:
-        if e.causation_id is not None:
-            children.setdefault(e.causation_id, []).append(e)
+        parent = _resolve_parent(e)
+        parent_by_eid[e.event_id] = parent
+        if parent is not None:
+            children.setdefault(parent, []).append(e)
 
     # Sort each child list by timestamp (tie-breaking)
     for child_list in children.values():
@@ -141,6 +170,7 @@ def trace_case(correlation_id: UUID, envelopes: list[EventEnvelope]) -> list[Tra
                 task_id=_extract_task_id(env),
                 timestamp=env.timestamp,
                 caused_by=env.causation_id,
+                parent_event_id=parent_by_eid.get(env.event_id),
             )
         )
 

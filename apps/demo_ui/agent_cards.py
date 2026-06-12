@@ -15,7 +15,6 @@ from typing import Literal
 from pydantic import BaseModel
 
 from agent_foundation.runtime.agent_card import AgentCard
-from agent_foundation.runtime.discovery import discover_agents
 from apps.demo_ui import config
 
 Liveness = Literal["live", "unknown", "not_announced"]
@@ -94,9 +93,16 @@ def build_roster_entries(
     return entries
 
 
-async def _read_announce_times(broker_url: str) -> dict[str, datetime]:
-    """Thin reader of the compacted agent-card topic capturing each card's latest
-    announcement envelope timestamp (research R2). Best-effort: never raises."""
+async def _read_cards_and_times(
+    broker_url: str,
+) -> tuple[list[AgentCard], dict[str, datetime]]:
+    """Single compacted-topic scan returning the latest card per agent *and* each
+    agent's latest announcement timestamp.
+
+    Collapses what used to be two independent consumer scans (foundation
+    ``discover_agents`` + a separate announce-time reader) into one pass, halving
+    the consumer bootstrap + end-of-topic poll cost paid on every roster refresh.
+    Best-effort: never raises (FR-016)."""
     from aiokafka import AIOKafkaConsumer  # type: ignore[import-untyped]
 
     from agent_foundation.envelope import EventEnvelope
@@ -110,6 +116,7 @@ async def _read_announce_times(broker_url: str) -> dict[str, datetime]:
         enable_auto_commit=False,
         value_deserializer=lambda b: b,
     )
+    latest: dict[str, AgentCard] = {}
     times: dict[str, datetime] = {}
     try:
         await consumer.start()
@@ -121,6 +128,8 @@ async def _read_announce_times(broker_url: str) -> dict[str, datetime]:
                 for msg in records:
                     try:
                         env = EventEnvelope.model_validate_json(msg.value)
+                        card = AgentCard.model_validate(env.payload)
+                        latest[card.agent_id] = card
                         times[env.agent_id] = env.timestamp
                     except Exception:
                         pass
@@ -129,7 +138,7 @@ async def _read_announce_times(broker_url: str) -> dict[str, datetime]:
     finally:
         with contextlib.suppress(Exception):
             await consumer.stop()
-    return times
+    return list(latest.values()), times
 
 
 def _probe_liveness(url: str | None) -> Liveness:
@@ -156,15 +165,11 @@ def build_roster(broker_url: str = config.BROKER_URL) -> list[RosterEntry]:
     than an exception (FR-016).
     """
     try:
-        cards = config.run_async(discover_agents(broker_url), timeout=config.READ_TIMEOUT_SECONDS)
-    except Exception:
-        cards = []
-    try:
-        announce_times = config.run_async(
-            _read_announce_times(broker_url), timeout=config.READ_TIMEOUT_SECONDS
+        cards, announce_times = config.run_async(
+            _read_cards_and_times(broker_url), timeout=config.READ_TIMEOUT_SECONDS
         )
     except Exception:
-        announce_times = {}
+        cards, announce_times = [], {}
 
     liveness: dict[str, Liveness] = {}
     announced_ids = {c.agent_id for c in cards}

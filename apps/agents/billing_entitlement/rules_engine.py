@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from agent_foundation.observability.decorators import traced
 from apps.agents.billing_entitlement.models import (
     BillingFacts,
     EligibilityRecommendation,
@@ -23,6 +24,7 @@ from apps.agents.billing_entitlement.policy import (
 from packages.contracts.events.payloads import EvidenceItem
 
 
+@traced("policy.evaluate")
 def evaluate(
     facts: BillingFacts,
     request: RefundEligibilityRequest,

@@ -66,7 +66,6 @@ def build_timeline_from_records(correlation_id: UUID, records: list[AuditPayload
         audit_by_id[env.event_id] = rec
 
     envelopes = list(env_by_id.values())
-    present_ids = set(env_by_id)
 
     # Map a step back to its event_id via the envelope's stable identity.
     id_by_key: dict[tuple[str, datetime, str, UUID | None], UUID] = {
@@ -92,7 +91,11 @@ def build_timeline_from_records(correlation_id: UUID, records: list[AuditPayload
                 timestamp=step.timestamp,
                 caused_by=step.caused_by,
                 task_id=step.task_id,
-                is_orphan=step.caused_by is not None and step.caused_by not in present_ids,
+                # Orphan only when the step has a cause that could not be
+                # resolved to any event in the case — task_id-based causation
+                # (peer domain results) is resolved by trace_case to the
+                # triggering request, so those are no longer false orphans.
+                is_orphan=step.caused_by is not None and step.parent_event_id is None,
             )
         )
 

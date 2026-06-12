@@ -19,8 +19,83 @@ from agent_foundation.llm.request import AssistiveRequest
 from agent_foundation.llm.result import AssistiveResult, ReasoningPath
 from agent_foundation.llm.store import AssistiveResultStore
 from agent_foundation.logging import get_logger
+from agent_foundation.observability.attributes import build_span_attrs
+from agent_foundation.observability.client import get_client
+from agent_foundation.observability.scores import (
+    score_cache_hit,
+    score_latency_ms,
+    score_schema_valid,
+    score_used_fallback,
+)
+from agent_foundation.observability.tracing import generation as obs_generation
 
 _log = get_logger(__name__)
+
+
+def _enrich_generation(
+    lf_gen: Any,
+    result: AssistiveResult,
+    redactor: Redactor,
+    *,
+    redact_pii: bool,
+) -> None:
+    """Update lf_gen with token usage, output completion, and model_id. Fail-open."""
+    if lf_gen is None:
+        return
+    try:
+        if result.model_id:
+            lf_gen.update(model=result.model_id)
+    except Exception:
+        pass
+
+    if result.token_usage is not None:
+        try:
+            usage: dict[str, int] = {
+                "input": result.token_usage.input_tokens,
+                "output": result.token_usage.output_tokens,
+            }
+            if result.token_usage.cache_read_tokens:
+                usage["cache_read_tokens"] = result.token_usage.cache_read_tokens
+            if result.token_usage.cache_write_tokens:
+                usage["cache_write_tokens"] = result.token_usage.cache_write_tokens
+            lf_gen.update(usage=usage)
+        except Exception:
+            pass
+
+    try:
+        raw_output: Any = result.value
+        if raw_output is not None:
+            if isinstance(raw_output, BaseModel):
+                raw_output = raw_output.model_dump()
+            if redact_pii:
+                raw_output = redactor.scrub(raw_output)
+            lf_gen.update(output=raw_output)
+    except Exception:
+        pass
+
+
+def _emit_scores(
+    lf_gen: Any,
+    result: AssistiveResult,
+) -> None:
+    """Write programmatic evaluation scores to LangFuse. Fail-open."""
+    if lf_gen is None:
+        return
+    try:
+        trace_id: str | None = getattr(lf_gen, "trace_id", None)
+        if trace_id is None:
+            return
+        client = get_client()
+        score_schema_valid(
+            client, trace_id, valid=(result.reasoning_path != ReasoningPath.fallback)
+        )
+        score_used_fallback(
+            client, trace_id, used=(result.reasoning_path == ReasoningPath.fallback)
+        )
+        score_cache_hit(client, trace_id, hit=result.cache_hit)
+        score_latency_ms(client, trace_id, latency_ms=float(result.latency_ms))
+    except Exception:
+        pass
 
 
 class LLMRuntime:
@@ -31,124 +106,175 @@ class LLMRuntime:
         store: AssistiveResultStore | None = None,
         config: RuntimeConfig | None = None,
         publisher: Any = None,
+        obs_config: Any = None,
     ) -> None:
         self._provider = provider
         self._store = store or AssistiveResultStore()
         self._config = config or RuntimeConfig.from_env()
         self._publisher = publisher
+        self._obs_config = obs_config
         self._redactor = Redactor.from_config(self._config)
 
     async def reason(self, request: AssistiveRequest) -> AssistiveResult:
-        start = time.perf_counter()
-        profile = resolve_profile(request.agent_id, request.task_kind, config=self._config)
-
-        cached = await self._store.get(request.idempotency_key)
-        if cached is not None:
-            latency_ms = int((time.perf_counter() - start) * 1000)
-            result = cached.model_copy(
-                update={"reasoning_path": ReasoningPath.cache, "latency_ms": latency_ms}
-            )
-            await self._emit_audit(request, result, profile)
-            return result
-
-        prompt = self._render_prompt(request)
-        prompt_ref = self._compute_prompt_ref(request, prompt)
-
-        if not self._config.log_raw_prompts:
-            _log.info(
-                "llm.invoke",
+        with obs_generation(
+            "llm.invoke",
+            model=request.agent_id,
+            attrs=build_span_attrs(
                 agent_id=request.agent_id,
-                task_kind=request.task_kind,
-                prompt_ref=prompt_ref,
-            )
-        else:
-            _log.info("llm.invoke", agent_id=request.agent_id, prompt=prompt)
+                task_id=getattr(request, "task_id", None),
+            ),
+        ) as lf_gen:
+            start = time.perf_counter()
+            profile = resolve_profile(request.agent_id, request.task_kind, config=self._config)
 
-        try:
-            raw = await asyncio.wait_for(
-                self._provider.invoke(prompt, profile),
-                timeout=profile.timeout_seconds,
-            )
-        except TimeoutError:
-            return await self._fallback(
-                request,
-                start,
-                profile,
-                FailureReason.timeout,
-                "Model invocation timed out",
-                prompt_ref=prompt_ref,
-            )
-        except ProviderError as exc:
-            return await self._fallback(
-                request,
-                start,
-                profile,
-                FailureReason.model_unavailable,
-                str(exc),
-                prompt_ref=prompt_ref,
-            )
-        except LLMRuntimeError as exc:
-            return await self._fallback(
-                request,
-                start,
-                profile,
-                exc.failure_reason,
-                str(exc),
-                prompt_ref=prompt_ref,
-            )
-        except Exception as exc:
-            return await self._fallback(
-                request,
-                start,
-                profile,
-                FailureReason.model_unavailable,
-                str(exc),
-                prompt_ref=prompt_ref,
-            )
+            cached = await self._store.get(request.idempotency_key)
+            if cached is not None:
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                result = cached.model_copy(
+                    update={"reasoning_path": ReasoningPath.cache, "latency_ms": latency_ms}
+                )
+                await self._emit_audit(request, result, profile)
+                _enrich_generation(
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
+                _emit_scores(lf_gen, result)
+                return result
 
-        if not self._config.log_raw_outputs:
-            _log.info("llm.completed", agent_id=request.agent_id, length=len(raw.text))
-        else:
-            _log.info("llm.completed", agent_id=request.agent_id, output=raw.text)
+            prompt = self._render_prompt(request)
+            prompt_ref = self._compute_prompt_ref(request, prompt)
 
-        value = self._validate_output(raw.text, request)
-        if value is None:
-            from agent_foundation.llm.structured import invoke_structured
+            # Set the input prompt on the generation span (redacted if configured)
+            if lf_gen is not None:
+                try:
+                    input_prompt = (
+                        self._redactor.scrub(prompt) if self._config.redact_pii else prompt
+                    )
+                    lf_gen.update(input=input_prompt)
+                except Exception:
+                    pass
 
-            outcome = await invoke_structured(
-                prompt,
-                request.output_schema,
-                provider=self._provider,
-                profile=profile,
-                grounding_inputs=request.grounding_inputs,
-                max_repairs=profile.max_repairs,
-            )
-            if outcome.ok:
-                value = outcome.value
+            if not self._config.log_raw_prompts:
+                _log.info(
+                    "llm.invoke",
+                    agent_id=request.agent_id,
+                    task_kind=request.task_kind,
+                    prompt_ref=prompt_ref,
+                )
             else:
-                return await self._fallback(
+                _log.info("llm.invoke", agent_id=request.agent_id, prompt=prompt)
+
+            try:
+                raw = await asyncio.wait_for(
+                    self._provider.invoke(prompt, profile),
+                    timeout=profile.timeout_seconds,
+                )
+            except TimeoutError:
+                result = await self._fallback(
                     request,
                     start,
                     profile,
-                    FailureReason.invalid_output,
-                    "Output failed validation after repairs",
+                    FailureReason.timeout,
+                    "Model invocation timed out",
                     prompt_ref=prompt_ref,
                 )
+                _enrich_generation(
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
+                _emit_scores(lf_gen, result)
+                return result
+            except ProviderError as exc:
+                result = await self._fallback(
+                    request,
+                    start,
+                    profile,
+                    FailureReason.model_unavailable,
+                    str(exc),
+                    prompt_ref=prompt_ref,
+                )
+                _enrich_generation(
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
+                _emit_scores(lf_gen, result)
+                return result
+            except LLMRuntimeError as exc:
+                result = await self._fallback(
+                    request,
+                    start,
+                    profile,
+                    exc.failure_reason,
+                    str(exc),
+                    prompt_ref=prompt_ref,
+                )
+                _enrich_generation(
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
+                _emit_scores(lf_gen, result)
+                return result
+            except Exception as exc:
+                result = await self._fallback(
+                    request,
+                    start,
+                    profile,
+                    FailureReason.model_unavailable,
+                    str(exc),
+                    prompt_ref=prompt_ref,
+                )
+                _enrich_generation(
+                    lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                )
+                _emit_scores(lf_gen, result)
+                return result
 
-        latency_ms = int((time.perf_counter() - start) * 1000)
-        result = AssistiveResult(
-            value=value,
-            reasoning_path=ReasoningPath.model,
-            token_usage=raw.token_usage,
-            cache_hit=raw.cache_hit,
-            model_id=raw.model_id,
-            latency_ms=latency_ms,
-            prompt_ref=prompt_ref,
-        )
+            if not self._config.log_raw_outputs:
+                _log.info("llm.completed", agent_id=request.agent_id, length=len(raw.text))
+            else:
+                _log.info("llm.completed", agent_id=request.agent_id, output=raw.text)
 
-        await self._store.put(request.idempotency_key, result)
-        await self._emit_audit(request, result, profile, prompt_ref=prompt_ref)
-        return result
+            value = self._validate_output(raw.text, request)
+            if value is None:
+                from agent_foundation.llm.structured import invoke_structured
+
+                outcome = await invoke_structured(
+                    prompt,
+                    request.output_schema,
+                    provider=self._provider,
+                    profile=profile,
+                    grounding_inputs=request.grounding_inputs,
+                    max_repairs=profile.max_repairs,
+                )
+                if outcome.ok:
+                    value = outcome.value
+                else:
+                    result = await self._fallback(
+                        request,
+                        start,
+                        profile,
+                        FailureReason.invalid_output,
+                        "Output failed validation after repairs",
+                        prompt_ref=prompt_ref,
+                    )
+                    _enrich_generation(
+                        lf_gen, result, self._redactor, redact_pii=self._config.redact_pii
+                    )
+                    _emit_scores(lf_gen, result)
+                    return result
+
+            latency_ms = int((time.perf_counter() - start) * 1000)
+            result = AssistiveResult(
+                value=value,
+                reasoning_path=ReasoningPath.model,
+                token_usage=raw.token_usage,
+                cache_hit=raw.cache_hit,
+                model_id=raw.model_id,
+                latency_ms=latency_ms,
+                prompt_ref=prompt_ref,
+            )
+
+            await self._store.put(request.idempotency_key, result)
+            await self._emit_audit(request, result, profile, prompt_ref=prompt_ref)
+            _enrich_generation(lf_gen, result, self._redactor, redact_pii=self._config.redact_pii)
+            _emit_scores(lf_gen, result)
+            return result
 
     async def _fallback(
         self,

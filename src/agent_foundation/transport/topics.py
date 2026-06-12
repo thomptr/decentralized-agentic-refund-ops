@@ -33,6 +33,9 @@ __all__ = [
 
 _TICKET_CREATED = topic_for("support", "ticket", "created")
 
+# Feature 009: Observability heartbeat topic
+TOPIC_HEARTBEAT = "system.agent.heartbeat"
+
 TOPIC_NAMES: dict[str, str] = {
     "agent.message.v1": TOPIC_MESSAGE,
     "agent.audit.v1": TOPIC_AUDIT,

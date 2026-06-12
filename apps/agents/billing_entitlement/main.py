@@ -115,8 +115,10 @@ def main() -> None:
     import signal
 
     from agent_foundation.logging import configure_logging
+    from agent_foundation.observability import configure_observability
 
     configure_logging()
+    configure_observability(agent_id="billing-entitlement")
     stop_event = asyncio.Event()
 
     def _handle_signal(*_: object) -> None:

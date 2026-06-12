@@ -17,6 +17,7 @@ def _build_root_event_types() -> frozenset[str]:
             "agent.sample.v1",
             "agent.workflow_start.v1",
             "agent.agent_card.v1",
+            "system.agent.heartbeat.v1",
             f"{env}.support.ticket.created.v1",
         }
     )
@@ -75,6 +76,7 @@ class EventEnvelope(BaseModel):
     timestamp: datetime
     event_type: str
     schema_version: str
+    trace_context: dict[str, str] | None = None
     payload: dict[str, Any]
 
     @field_validator("agent_id")
